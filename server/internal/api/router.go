@@ -47,7 +47,7 @@ func (s *Server) Start(addr string) error {
 	}
 	execDir := filepath.Dir(execPath)
 	agentBinPath := filepath.Join(execDir, "bin", "agent.exe")
-	
+
 	// 检查agent.exe是否存在，如果不存在尝试其他路径
 	if _, err := os.Stat(agentBinPath); os.IsNotExist(err) {
 		log.Printf("Warning: agent.exe not found at %s, trying alternative paths", agentBinPath)
@@ -92,8 +92,17 @@ func (s *Server) Start(addr string) error {
 		v1.POST("/agents/:agent_id/upload/progress", fileHandler.UploadProgress)
 	}
 
+	// 认证相关路由
+	auth := r.Group("/api/v1/auth")
+	{
+		auth.POST("/login", middleware.Login)
+		auth.POST("/logout", middleware.Logout)
+		auth.GET("/check", middleware.CheckAuth)
+	}
+
 	// 管理API路由组（需要认证）
 	admin := r.Group("/api/v1/admin")
+	admin.Use(middleware.RequireAuthAPI()) // 添加API认证中间件
 	{
 		// Agent管理
 		admin.GET("/agents", agentHandler.GetAll)
@@ -142,7 +151,7 @@ func (s *Server) Start(addr string) error {
 			}
 		}
 	}
-	
+
 	// 检查 web 目录是否存在
 	if _, err := os.Stat(webDir); err == nil {
 		log.Printf("Serving static files from: %s", webDir)
@@ -151,10 +160,10 @@ func (s *Server) Start(addr string) error {
 		log.Printf("Warning: web directory not found")
 	}
 
-	// 下载页面
+	// 下载页面（公开访问）
 	r.GET("/download", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		
+
 		// 尝试多个可能的路径
 		possiblePaths := []string{
 			filepath.Join(webDir, "templates", "dashboard_enhanced.html"),
@@ -163,7 +172,7 @@ func (s *Server) Start(addr string) error {
 			"./web/templates/dashboard_enhanced.html",
 			"../server/web/templates/dashboard_enhanced.html",
 		}
-		
+
 		var templatePath string
 		for _, path := range possiblePaths {
 			if _, err := os.Stat(path); err == nil {
@@ -171,7 +180,7 @@ func (s *Server) Start(addr string) error {
 				break
 			}
 		}
-		
+
 		if templatePath == "" {
 			log.Printf("Template file not found, tried: %v", possiblePaths)
 			c.String(404, "Download page not found")
@@ -182,10 +191,41 @@ func (s *Server) Start(addr string) error {
 		c.File(templatePath)
 	})
 
-	// 管理端页面
-	r.GET("/admin", func(c *gin.Context) {
+	// 登录页面（公开访问）
+	r.GET("/login", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		
+
+		// 尝试多个可能的路径
+		possiblePaths := []string{
+			filepath.Join(webDir, "templates", "login.html"),
+			filepath.Join(execDir, "web", "templates", "login.html"),
+			filepath.Join(execDir, "templates", "login.html"),
+			"./web/templates/login.html",
+			"../server/web/templates/login.html",
+		}
+
+		var templatePath string
+		for _, path := range possiblePaths {
+			if _, err := os.Stat(path); err == nil {
+				templatePath = path
+				break
+			}
+		}
+
+		if templatePath == "" {
+			log.Printf("Login template file not found, tried: %v", possiblePaths)
+			c.String(404, "Login page not found")
+			return
+		}
+
+		log.Printf("Loading login template from: %s", templatePath)
+		c.File(templatePath)
+	})
+
+	// 管理端页面（需要认证）
+	r.GET("/admin", middleware.RequireAuth(), func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+
 		// 尝试多个可能的路径
 		possiblePaths := []string{
 			filepath.Join(webDir, "templates", "admin.html"),
@@ -194,7 +234,7 @@ func (s *Server) Start(addr string) error {
 			"./web/templates/admin.html",
 			"../server/web/templates/admin.html",
 		}
-		
+
 		var templatePath string
 		for _, path := range possiblePaths {
 			if _, err := os.Stat(path); err == nil {
@@ -202,7 +242,7 @@ func (s *Server) Start(addr string) error {
 				break
 			}
 		}
-		
+
 		if templatePath == "" {
 			log.Printf("Admin template file not found, tried: %v", possiblePaths)
 			c.String(404, "Admin page not found")
@@ -214,5 +254,7 @@ func (s *Server) Start(addr string) error {
 	})
 
 	log.Printf("Server starting on %s", addr)
+	log.Printf("Default admin credentials: username=admin, password=admin123")
+	log.Printf("Set ADMIN_USERNAME and ADMIN_PASSWORD environment variables to customize")
 	return r.Run(addr)
 }
