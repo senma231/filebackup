@@ -37,7 +37,7 @@ jobs:
         run: ls -l agent/agent.exe || true
 
       - name: Upload agent.exe as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: agent-windows-amd64
           path: agent/agent.exe
