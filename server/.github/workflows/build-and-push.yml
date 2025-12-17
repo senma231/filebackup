@@ -25,8 +25,7 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: '0'
         run: |
-          mkdir -p build
-          go build -o ../agent/agent.exe ./cmd
+          go build -o agent.exe ./cmd
 
       - name: Show agent file
         run: ls -l agent/agent.exe || true
@@ -41,7 +40,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: .
+          context: ./server
+          file: ./server/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/doc-scanner-server:${{ github.sha }}
