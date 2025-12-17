@@ -423,3 +423,110 @@ function formatFileSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// 修改密码功能
+function openChangePasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'block';
+    document.getElementById('changePasswordForm').reset();
+    document.getElementById('passwordError').style.display = 'none';
+}
+
+function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'none';
+    document.getElementById('changePasswordForm').reset();
+    document.getElementById('passwordError').style.display = 'none';
+}
+
+// 修改密码表单提交
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('changePasswordForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordError');
+
+            // 验证新密码
+            if (newPassword.length < 6) {
+                errorDiv.textContent = '新密码长度至少为6位';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // 验证密码一致性
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = '两次输入的新密码不一致';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        old_password: oldPassword,
+                        new_password: newPassword
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    alert('密码修改成功！即将跳转到登录页面...');
+                    closeChangePasswordModal();
+                    // 延迟跳转，让用户看到成功消息
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1000);
+                } else {
+                    errorDiv.textContent = data.message || '密码修改失败';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Change password error:', error);
+                errorDiv.textContent = '网络错误，请稍后重试';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+});
+
+// 登出功能
+async function handleLogout() {
+    if (!confirm('确认要退出登录吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            window.location.href = '/login';
+        } else {
+            alert('退出登录失败');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('网络错误，请稍后重试');
+    }
+}
+
+// 点击模态框外部关闭
+window.addEventListener('click', function(e) {
+    const modal = document.getElementById('changePasswordModal');
+    if (e.target === modal) {
+        closeChangePasswordModal();
+    }
+});
+

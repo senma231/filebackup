@@ -30,6 +30,8 @@
                     <h1>文档扫描系统 - 管理后台</h1>
                 </div>
                 <div class="topbar-right">
+                    <button onclick="openChangePasswordModal()" class="btn-icon" title="修改密码">🔑 修改密码</button>
+                    <button onclick="handleLogout()" class="btn-icon" title="退出登录">🚪 退出登录</button>
                     <span class="status-badge">🟢 在线</span>
                     <span class="time" id="currentTime"></span>
                 </div>
@@ -173,6 +175,34 @@
         <div class="modal-content">
             <span class="close">&times;</span>
             <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close" onclick="closeChangePasswordModal()">&times;</span>
+            <h2>🔑 修改管理员密码</h2>
+            <form id="changePasswordForm" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label for="oldPassword">旧密码</label>
+                    <input type="password" id="oldPassword" name="oldPassword" required autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">新密码</label>
+                    <input type="password" id="newPassword" name="newPassword" required minlength="6" autocomplete="new-password">
+                    <small style="color: #999;">密码长度至少6位</small>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">确认新密码</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6" autocomplete="new-password">
+                </div>
+                <div id="passwordError" class="error-message" style="display: none;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认修改</button>
+                    <button type="button" onclick="closeChangePasswordModal()" class="btn" style="flex: 1; background: #ccc;">取消</button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -224,3 +224,53 @@ func CheckAuth(c *gin.Context) {
 		"message": "未登录",
 	})
 }
+
+// ChangePassword 修改密码处理
+func ChangePassword(c *gin.Context) {
+	var req struct {
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request",
+			"message": "旧密码和新密码不能为空",
+		})
+		return
+	}
+
+	// 验证新密码长度
+	if len(req.NewPassword) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid password",
+			"message": "新密码长度至少为6位",
+		})
+		return
+	}
+
+	// 获取当前管理员凭据
+	_, adminPassword := getAdminCredentials()
+
+	// 验证旧密码
+	if req.OldPassword != adminPassword {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Invalid credentials",
+			"message": "旧密码错误",
+		})
+		return
+	}
+
+	// 修改密码（通过设置环境变量）
+	// 注意：这种方式只在运行时有效，重启后会恢复
+	// 生产环境建议使用数据库或配置文件存储
+	os.Setenv("ADMIN_PASSWORD", req.NewPassword)
+
+	// 清除所有现有session，强制重新登录
+	activeSessions = make(map[string]time.Time)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "密码修改成功，请重新登录",
+	})
+}

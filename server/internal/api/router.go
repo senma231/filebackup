@@ -38,6 +38,7 @@ func (s *Server) Start(addr string) error {
 	fileHandler := handlers.NewFileHandler(s.db)
 	reportHandler := handlers.NewReportHandler(s.db)
 	downloadHandler := handlers.NewDownloadHandler(s.db)
+	storageHandler := handlers.NewStorageConfigHandler(s.db)
 
 	// 获取可执行文件所在目录
 	execPath, err := os.Executable()
@@ -86,6 +87,8 @@ func (s *Server) Start(addr string) error {
 			agents.POST("/register", agentHandler.Register)
 			agents.POST("/:agent_id/heartbeat", agentHandler.Heartbeat)
 			agents.GET("/:agent_id/config", agentHandler.GetConfig)
+			// Agent获取存储配置
+			agents.GET("/:agent_id/storage-config", storageHandler.GetByAgentID)
 		}
 
 		// 文件上传相关接口
@@ -98,6 +101,7 @@ func (s *Server) Start(addr string) error {
 		auth.POST("/login", middleware.Login)
 		auth.POST("/logout", middleware.Logout)
 		auth.GET("/check", middleware.CheckAuth)
+		auth.PUT("/password", middleware.RequireAuthAPI(), middleware.ChangePassword)
 	}
 
 	// 管理API路由组（需要认证）
@@ -126,6 +130,14 @@ func (s *Server) Start(addr string) error {
 		admin.GET("/reports/stats", reportHandler.GetStats)
 		admin.GET("/reports/agents", reportHandler.GetAgentStats)
 		admin.GET("/reports/files", reportHandler.GetFileStats)
+
+		// 存储配置管理
+		admin.GET("/storage-configs", storageHandler.GetAll)
+		admin.GET("/storage-configs/types", storageHandler.GetStorageTypes)
+		admin.GET("/storage-configs/:id", storageHandler.GetByID)
+		admin.POST("/storage-configs", storageHandler.Create)
+		admin.PUT("/storage-configs/:id", storageHandler.Update)
+		admin.DELETE("/storage-configs/:id", storageHandler.Delete)
 	}
 
 	// 健康检查
