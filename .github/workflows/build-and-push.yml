@@ -36,6 +36,13 @@ jobs:
       - name: Show agent file
         run: ls -l agent/agent.exe || true
 
+      - name: Upload agent.exe as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: agent-windows-amd64
+          path: agent/agent.exe
+          retention-days: 90
+
       - name: Copy agent to server directory
         run: |
           mkdir -p server/agent_bin
@@ -66,3 +73,20 @@ jobs:
 
       - name: Cleanup agent binary
         run: rm -f agent/agent.exe || true
+
+      - name: Build summary
+        run: |
+          echo "## 🎉 构建成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker 镜像" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ steps.repo_owner.outputs.owner }}/doc-scanner-server:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ steps.repo_owner.outputs.owner }}/doc-scanner-server:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Windows Agent" >> $GITHUB_STEP_SUMMARY
+          echo "已上传为 Artifact: **agent-windows-amd64**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 部署命令" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ steps.repo_owner.outputs.owner }}/doc-scanner-server:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
