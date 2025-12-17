@@ -81,6 +81,7 @@ desktop.ini
 # 构建输出
 server/agent/
 server/agent_src/
+server/agent_bin/
 
 # 归档的临时文档（不对外公开）
 docs/archive/

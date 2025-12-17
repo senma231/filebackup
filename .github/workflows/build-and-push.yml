@@ -25,10 +25,17 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: '0'
         run: |
+          go mod download
           go build -o agent.exe ./cmd
 
       - name: Show agent file
         run: ls -l agent/agent.exe || true
+
+      - name: Copy agent to server directory
+        run: |
+          mkdir -p server/agent_bin
+          cp agent/agent.exe server/agent_bin/agent.exe
+          ls -l server/agent_bin/
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2

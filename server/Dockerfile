@@ -18,10 +18,9 @@ COPY . .
 # 编译 Server（需要 CGO 支持 SQLite）
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod=mod -o server ./cmd
 
-# NOTE: `agent.exe` should be produced by CI (GitHub Actions) and placed under `agent/agent.exe`.
-# The CI will compile the Windows binary and include it in the build context so the
-# `COPY --from=builder /app/agent/agent.exe /app/bin/agent.exe` below will pick it up.
-# Avoid compiling the agent in the Docker builder stage.
+# NOTE: `agent.exe` should be produced by CI (GitHub Actions) and copied to `agent_bin/agent.exe`.
+# The CI will compile the Windows binary and copy it to server/agent_bin/ directory
+# so the COPY command below can pick it up from the build context.
 
 # 运行阶段
 FROM alpine:latest
@@ -31,14 +30,15 @@ WORKDIR /app
 # 安装必要的工具
 RUN apk add --no-cache ca-certificates
 
+# 创建数据目录
+RUN mkdir -p /app/data /app/bin
+
 # 从构建阶段复制编译好的程序
 COPY --from=builder /app/server /app/
 COPY --from=builder /app/web /app/web/
-COPY --from=builder /app/agent/agent.exe /app/bin/agent.exe
 
-# 创建数据目录
-RUN mkdir -p /app/data
-RUN mkdir -p /app/bin
+# 从构建上下文复制预编译的agent.exe
+COPY agent_bin/agent.exe /app/bin/agent.exe
 
 # 暴露端口
 EXPOSE 8889
