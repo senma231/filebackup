@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档扫描系统 - 管理控制台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 30px -20px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: white;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active:hover {
+            background: #667eea;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .email-display {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .email-prefix {
+            color: #999;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .download-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .download-section h2 {
+            margin-bottom: 15px;
+        }
+
+        .download-form {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 14px;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-primary:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 文档扫描系统</h1>
+            <p class="subtitle">Windows文档自动扫描与上传管理控制台</p>
+        </header>
+
+        <!-- Agent下载区域 -->
+        <div class="download-section" id="downloadSection">
+            <h2>🚀 下载Agent</h2>
+            <p>请输入您的邮箱地址，系统将为您生成定制化的Agent程序</p>
+            <form class="download-form" id="downloadForm">
+                <div class="form-group">
+                    <label>邮箱地址 *</label>
+                    <input type="email" id="email" placeholder="例如：user@domain.com" required>
+                </div>
+                <div class="form-group">
+                    <label>计算机名 *</label>
+                    <input type="text" id="hostname" placeholder="您的计算机名称" required>
+                </div>
+                <div class="form-group">
+                    <label>IP地址</label>
+                    <input type="text" id="ipAddress" placeholder="自动获取或手动输入">
+                </div>
+                <button type="submit" class="btn btn-primary">生成下载链接</button>
+            </form>
+            <div id="downloadResult"></div>
+        </div>
+
+        <!-- 导航标签 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">仪表板</button>
+            <button class="tab" onclick="switchTab('agents')">Agent管理</button>
+            <button class="tab" onclick="switchTab('files')">文件管理</button>
+            <button class="tab" onclick="switchTab('configs')">配置管理</button>
+        </div>
+
+        <!-- 仪表板 -->
+        <div id="dashboard" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalAgents">0</div>
+                    <div class="stat-label">总Agent数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="onlineAgents">0</div>
+                    <div class="stat-label">在线Agent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalFiles">0</div>
+                    <div class="stat-label">总文件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSize">0 B</div>
+                    <div class="stat-label">总大小</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>最近活跃的Agent</h3>
+                <div class="table-container">
+                    <table id="recentAgentsTable">
+                        <thead>
+                            <tr>
+                                <th>Agent ID</th>
+                                <th>邮箱</th>
+                                <th>文件夹前缀</th>
+                                <th>计算机名</th>
+                                <th>状态</th>
+                                <th>最后心跳</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentAgentsBody">
+                            <tr>
+                                <td colspan="6" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent管理 -->
+        <div id="agents" class="tab-content hidden">
+            <div class="card">
+                <h3>所有Agent</h3>
+                <div class="table-container">
+                    <table id="agentsTable">
+                        <thead>
+                            <tr>
+                                <th>Agent ID</th>
+                                <th>邮箱</th>
+                                <th>文件夹前缀</th>
+                                <th>计算机名</th>
+                                <th>IP地址</th>
+                                <th>状态</th>
+                                <th>注册时间</th>
+                                <th>最后心跳</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agentsBody">
+                            <tr>
+                                <td colspan="8" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文件管理 -->
+        <div id="files" class="tab-content hidden">
+            <div class="card">
+                <h3>文件上传记录</h3>
+                <div class="table-container">
+                    <table id="filesTable">
+                        <thead>
+                            <tr>
+                                <th>文件名</th>
+                                <th>文件类型</th>
+                                <th>大小</th>
+                                <th>Agent</th>
+                                <th>上传者邮箱</th>
+                                <th>状态</th>
+                                <th>上传时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="filesBody">
+                            <tr>
+                                <td colspan="7" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置管理 -->
+        <div id="configs" class="tab-content hidden">
+            <div class="card">
+                <h3>配置列表</h3>
+                <div class="table-container">
+                    <table id="configsTable">
+                        <thead>
+                            <tr>
+                                <th>配置名称</th>
+                                <th>配置类型</th>
+                                <th>目标Agent</th>
+                                <th>版本</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="configsBody">
+                            <tr>
+                                <td colspan="7" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentTab = 'dashboard';
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardStats();
+            loadRecentAgents();
+            loadAllAgents();
+            loadAllFiles();
+            loadAllConfigs();
+
+            // 自动获取主机名
+            document.getElementById('hostname').value = window.location.hostname;
+        });
+
+        // 切换标签
+        function switchTab(tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+            });
+
+            // 移除所有标签的active类
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // 显示选中的标签内容
+            document.getElementById(tabName).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(el => {
+                if (el.textContent.includes(tabName === 'dashboard' ? '仪表板' :
+                                          tabName === 'agents' ? 'Agent管理' :
+                                          tabName === 'files' ? '文件管理' : '配置管理')) {
+                    el.classList.add('active');
+                }
+            });
+
+            currentTab = tabName;
+        }
+
+        // 加载仪表板统计
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/v1/admin/reports/stats');
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const stats = data.data;
+                    document.getElementById('totalAgents').textContent = stats.total_agents;
+                    document.getElementById('onlineAgents').textContent = stats.online_agents;
+                    document.getElementById('totalFiles').textContent = stats.total_files;
+                    document.getElementById('totalSize').textContent = stats.total_size_formatted;
+                }
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+            }
+        }
+
+        // 加载最近活跃的Agent
+        async function loadRecentAgents() {
+            try {
+                const response = await fetch('/api/v1/admin/reports/stats');
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const agents = data.data.recent_active_agents;
+                    const tbody = document.getElementById('recentAgentsBody');
+
+                    if (agents.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = agents.map(agent => `
+                        <tr>
+                            <td>${agent.agent_id}</td>
+                            <td><span class="email-display">${agent.email || '-'}</span></td>
+                            <td><span class="email-prefix">${agent.email_prefix || '-'}</span></td>
+                            <td>${agent.hostname}</td>
+                            <td><span class="status-badge status-${agent.status}">${agent.status}</span></td>
+                            <td>${agent.last_heartbeat ? new Date(agent.last_heartbeat).toLocaleString() : '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载最近Agent失败:', error);
+            }
+        }
+
+        // 加载所有Agent
+        async function loadAllAgents() {
+            try {
+                const response = await fetch('/api/v1/admin/agents');
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const agents = data.data.data;
+                    const tbody = document.getElementById('agentsBody');
+
+                    if (agents.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = agents.map(agent => `
+                        <tr>
+                            <td>${agent.agent_id}</td>
+                            <td><span class="email-display">${agent.email || '-'}</span></td>
+                            <td><span class="email-prefix">${agent.email_prefix || '-'}</span></td>
+                            <td>${agent.hostname}</td>
+                            <td>${agent.ip_address}</td>
+                            <td><span class="status-badge status-${agent.status}">${agent.status}</span></td>
+                            <td>${new Date(agent.created_at).toLocaleString()}</td>
+                            <td>${agent.last_heartbeat ? new Date(agent.last_heartbeat).toLocaleString() : '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载Agent列表失败:', error);
+            }
+        }
+
+        // 加载所有文件
+        async function loadAllFiles() {
+            try {
+                const response = await fetch('/api/v1/admin/files');
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const files = data.data.data;
+                    const tbody = document.getElementById('filesBody');
+
+                    if (files.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = files.map(file => `
+                        <tr>
+                            <td>${file.file_name}</td>
+                            <td>${file.file_type || '-'}</td>
+                            <td>${formatBytes(file.file_size)}</td>
+                            <td>${file.agent_id}</td>
+                            <td><span class="email-display">${file.email || '-'}</span></td>
+                            <td><span class="status-badge status-${file.upload_status}">${file.upload_status}</span></td>
+                            <td>${new Date(file.created_at).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载文件列表失败:', error);
+            }
+        }
+
+        // 加载所有配置
+        async function loadAllConfigs() {
+            try {
+                const response = await fetch('/api/v1/admin/configs');
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const configs = data.data;
+                    const tbody = document.getElementById('configsBody');
+
+                    if (configs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = configs.map(config => `
+                        <tr>
+                            <td>${config.config_name}</td>
+                            <td>${config.config_type}</td>
+                            <td>${config.target_agent_id || '全局'}</td>
+                            <td>${config.version}</td>
+                            <td><span class="status-badge status-${config.is_active ? 'online' : 'offline'}">${config.is_active ? '激活' : '禁用'}</span></td>
+                            <td>${new Date(config.created_at).toLocaleString()}</td>
+                            <td>
+                                <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">编辑</button>
+                                <button class="btn" style="padding: 5px 10px; font-size: 12px; background: #dc3545; color: white;">删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载配置列表失败:', error);
+            }
+        }
+
+        // 处理下载表单提交
+        document.getElementById('downloadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const hostname = document.getElementById('hostname').value;
+            const ipAddress = document.getElementById('ipAddress').value;
+
+            const resultDiv = document.getElementById('downloadResult');
+            resultDiv.innerHTML = '<div class="loading">正在生成下载链接...</div>';
+
+            try {
+                const response = await fetch('/api/v1/download/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        hostname: hostname,
+                        ip_address: ipAddress || 'auto-detect',
+                        os_version: navigator.platform,
+                        agent_version: '1.0.0'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    resultDiv.innerHTML = `
+                        <div class="success-message">
+                            <h4>✅ 下载链接生成成功！</h4>
+                            <p><strong>Agent ID:</strong> ${data.data.agent_id}</p>
+                            <p><strong>邮箱:</strong> ${data.data.email}</p>
+                            <p><strong>文件夹前缀:</strong> ${data.data.email_prefix}</p>
+                            <p style="margin-top: 15px;">
+                                <a href="${data.data.download_url}" class="btn btn-download" download>
+                                    下载Agent程序
+                                </a>
+                            </p>
+                            <p style="margin-top: 10px; font-size: 12px; opacity: 0.8;">
+                                下载后运行Agent，程序将自动连接到服务器并开始扫描文档
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error-message">错误: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error-message">请求失败: ${error.message}</div>`;
+            }
+        });
+
+        // 格式化字节数
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 定期刷新数据
+        setInterval(function() {
+            if (currentTab === 'dashboard') {
+                loadDashboardStats();
+                loadRecentAgents();
+            } else if (currentTab === 'agents') {
+                loadAllAgents();
+            } else if (currentTab === 'files') {
+                loadAllFiles();
+            }
+        }, 30000); // 每30秒刷新一次
+    </script>
+</body>
+</html>

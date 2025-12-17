@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件备份系统 - Agent 下载</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #2c3e50;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px 0;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+            font-weight: 300;
+        }
+
+        .download-section {
+            background: white;
+            border-radius: 12px;
+            padding: 50px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .download-section h2 {
+            margin-bottom: 15px;
+            font-size: 24px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .download-section > p {
+            margin-bottom: 30px;
+            font-size: 15px;
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
+        .download-form {
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input::placeholder {
+            color: #bdc3c7;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #1f618d 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 30px;
+            background: #ecf0f1;
+            border-left: 4px solid #27ae60;
+            border-radius: 8px;
+            color: #2c3e50;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-section h3 {
+            color: #27ae60;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .download-info {
+            text-align: left;
+            margin: 20px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+        }
+
+        .download-info p {
+            margin: 10px 0;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .download-info strong {
+            color: #3498db;
+            font-weight: 600;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .download-btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 20px;
+            text-align: center;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(135deg, #229954 0%, #1d7e4e 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.3);
+        }
+
+        .instruction-steps {
+            background: white;
+            padding: 25px;
+            border-radius: 6px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .instruction-steps h4 {
+            color: #3498db;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .instruction-steps ol {
+            padding-left: 20px;
+        }
+
+        .instruction-steps li {
+            margin: 12px 0;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .instruction-steps code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+        }
+
+        .tip {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            color: #856404;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .download-section {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .download-section h2 {
+                font-size: 20px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>文件备份系统</h1>
+            <p class="subtitle">安全、可靠、高效的文件备份解决方案</p>
+        </header>
+
+        <!-- Agent下载区域 -->
+        <div class="download-section">
+            <h2>🚀 获取备份客户端</h2>
+            <p>输入邮箱地址，获取定制的备份客户端程序。客户端将自动备份您的重要文件到服务器。</p>
+
+            <form class="download-form" id="downloadForm">
+                <div class="form-group">
+                    <label>📧 邮箱地址</label>
+                    <input type="email" id="email" placeholder="请输入您的邮箱地址" required>
+                </div>
+
+                <button type="submit" class="btn" id="generateBtn">
+                    生成下载链接
+                </button>
+            </form>
+
+            <div id="resultSection" class="result-section">
+                <h3>✅ 下载包已生成</h3>
+
+                <div class="download-info">
+                    <div class="info-row">
+                        <span><strong>客户端 ID:</strong></span>
+                        <span id="resultAgentID" style="font-family: monospace; color: #e74c3c;"></span>
+                    </div>
+                    <div class="info-row">
+                        <span><strong>邮箱地址:</strong></span>
+                        <span id="resultEmail"></span>
+                    </div>
+                    <div class="info-row">
+                        <span><strong>备份标识:</strong></span>
+                        <span id="resultEmailPrefix" style="font-family: monospace; color: #e74c3c;"></span>
+                    </div>
+                    <div class="info-row">
+                        <span><strong>包文件大小:</strong></span>
+                        <span id="resultSize"></span>
+                    </div>
+                </div>
+
+                <button id="downloadLink" class="download-btn">
+                    📥 下载客户端
+                </button>
+
+                <div class="instruction-steps">
+                    <h4>📖 安装与启动步骤</h4>
+                    <ol>
+                        <li>点击上方按钮<strong>下载</strong>压缩包文件</li>
+                        <li>将压缩包<strong>解压</strong>到任意目录</li>
+                        <li>双击运行 <code>agent.exe</code> 或 <code>启动.bat</code></li>
+                        <li>客户端启动后将<strong>自动</strong>连接服务器并开始备份文件</li>
+                        <li>文件将备份至 <code>/uploads/{备份标识}/</code> 目录</li>
+                    </ol>
+                    <div class="tip">
+                        💡 <strong>提示：</strong>客户端启动后可最小化到系统托盘，无需一直保持窗口打开。重要数据会自动加密备份。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 处理表单提交
+            document.getElementById('downloadForm').addEventListener('submit', handleDownload);
+        });
+
+        // 处理下载请求
+        async function handleDownload(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+
+            if (!email) {
+                alert('请输入邮箱地址');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const resultSection = document.getElementById('resultSection');
+
+            // 禁用按钮
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+
+            try {
+                const response = await fetch('/api/v1/download/enhanced/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        hostname: 'auto-detect',
+                        ip_address: 'auto-detect',
+                        os_version: 'auto-detect',
+                        agent_version: '1.0.0'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    // 显示结果
+                    document.getElementById('resultAgentID').textContent = data.data.agent_id;
+                    document.getElementById('resultEmail').textContent = data.data.email;
+                    document.getElementById('resultEmailPrefix').textContent = data.data.email_prefix;
+                    document.getElementById('resultSize').textContent = formatBytes(data.data.package_size);
+
+                    // 设置下载链接
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.onclick = function(e) {
+                        e.preventDefault();
+                        const link = document.createElement('a');
+                        link.href = data.data.download_url;
+                        link.download = `backup-client_${data.data.email_prefix}.zip`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    };
+
+                    // 显示结果区域
+                    resultSection.classList.add('show');
+
+                    // 滚动到结果区域
+                    resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    alert('生成失败：' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('请求失败：' + error.message);
+            } finally {
+                // 恢复按钮
+                btn.disabled = false;
+                btn.textContent = '生成下载链接';
+            }
+        }
+
+        // 格式化字节数
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

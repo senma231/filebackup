@@ -1,0 +1,86 @@
+# 编译的二进制文件
+agent/agent
+agent/agent.exe
+agent/server
+server/server
+server/agent
+server/agent_src/agent
+server/agent_src/server
+
+# Go 构建产物
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+build/
+
+# 测试覆盖率
+*.out
+coverage.html
+
+# 临时文件和压缩包
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.tmp
+*.swp
+*~
+
+# JSON响应文件（测试产物）
+resp*.json
+package*.zip
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# IDE和编辑器
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go 依赖
+vendor/
+go.work
+go.work.sum
+
+# 配置文件（包含敏感信息）
+*.local.json
+.env
+.env.local
+.env.*.local
+
+# Claude Code 本地设置
+.claude/settings.local.json
+
+# 临时工作目录
+.spec-workflow/
+tmp/
+temp/
+
+# 操作系统
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# 构建输出
+server/agent/
+server/agent_src/
+
+# 归档的临时文档（不对外公开）
+docs/archive/
