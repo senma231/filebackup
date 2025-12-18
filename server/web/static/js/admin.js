@@ -53,7 +53,8 @@ function switchSection(section) {
                 loadFiles();
                 break;
             case 'configs':
-                loadConfigs();
+                loadStorageConfigs();
+                loadStorageTypes();
                 break;
             case 'reports':
                 loadReports();

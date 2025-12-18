@@ -381,6 +381,8 @@ body {
     border-radius: 8px;
     width: 90%;
     max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     animation: slideDown 0.3s ease;
 }
@@ -521,6 +523,16 @@ body {
     font-weight: 500;
 }
 
+/* 复选框样式 - 减小间距 */
+.form-group label input[type="checkbox"] {
+    margin-right: 8px;
+    width: auto;
+}
+
+.form-group:has(input[type="checkbox"]) {
+    margin-bottom: 10px;
+}
+
 .form-group input {
     width: 100%;
     padding: 10px 12px;
@@ -529,6 +541,10 @@ body {
     font-size: 14px;
     transition: border-color 0.3s;
     box-sizing: border-box;
+}
+
+.form-group input[type="checkbox"] {
+    width: auto;
 }
 
 .form-group input:focus {
@@ -553,4 +569,113 @@ body {
     color: #333;
     font-size: 20px;
 }
+
+/* 下拉选择框 */
+.filter-select, select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.filter-select:focus, select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 文本域 */
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 状态徽章 */
+.status-active {
+    background: #d4edda;
+    color: #155724;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* 存储类型标签 */
+.storage-type-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn-edit {
+    background: #667eea;
+    color: white;
+}
+
+.action-btn-edit:hover {
+    background: #5568d3;
+}
+
+.action-btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.action-btn-delete:hover {
+    background: #c82333;
+}
+
+.action-btn-toggle {
+    background: #28a745;
+    color: white;
+}
+
+.action-btn-toggle:hover {
+    background: #218838;
+}
+
 

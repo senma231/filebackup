@@ -8,7 +8,8 @@ import (
 
 // NewDB 创建新的数据库连接
 func NewDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	// 添加 _loc=auto 以确保UTF-8编码支持
+	db, err := sql.Open("sqlite3", dbPath+"?_loc=auto")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -17,6 +18,12 @@ func NewDB(dbPath string) (*sql.DB, error) {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)  // 连接最大生命周期
+
+	// 设置 PRAGMA 以确保UTF-8编码
+	_, err = db.Exec("PRAGMA encoding = 'UTF-8';")
+	if err != nil {
+		return nil, fmt.Errorf("failed to set encoding: %w", err)
+	}
 
 	// 测试连接
 	if err := db.Ping(); err != nil {

@@ -124,25 +124,30 @@
 
                 <!-- 配置管理 -->
                 <section id="configs-section" class="section">
-                    <h2>⚙️ 配置管理</h2>
+                    <h2>⚙️ 存储配置管理</h2>
                     <div class="table-controls">
-                        <button onclick="openAddConfig()" class="btn btn-primary">➕ 新增配置</button>
-                        <button onclick="refreshConfigs()" class="btn btn-primary">🔄 刷新</button>
+                        <select id="storageTypeFilter" class="filter-select" onchange="filterStorageConfigs()">
+                            <option value="">全部存储类型</option>
+                        </select>
+                        <button onclick="openAddStorageConfig()" class="btn btn-primary">➕ 新增存储配置</button>
+                        <button onclick="refreshStorageConfigs()" class="btn btn-primary">🔄 刷新</button>
                     </div>
                     <div class="table-container">
-                        <table id="configsTable" class="data-table">
+                        <table id="storageConfigsTable" class="data-table">
                             <thead>
                                 <tr>
-                                    <th>配置 ID</th>
+                                    <th>ID</th>
                                     <th>配置名称</th>
-                                    <th>描述</th>
+                                    <th>存储类型</th>
+                                    <th>目标Agent</th>
+                                    <th>优先级</th>
+                                    <th>状态</th>
                                     <th>创建时间</th>
-                                    <th>更新时间</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
-                            <tbody id="configsTableBody">
-                                <tr><td colspan="6" class="loading">加载中...</td></tr>
+                            <tbody id="storageConfigsTableBody">
+                                <tr><td colspan="8" class="loading">加载中...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -206,6 +211,67 @@
         </div>
     </div>
 
+    <!-- 存储配置模态框 -->
+    <div id="storageConfigModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close" onclick="closeStorageConfigModal()">&times;</span>
+            <h2 id="storageConfigModalTitle">➕ 新增存储配置</h2>
+            <form id="storageConfigForm" style="margin-top: 20px;">
+                <input type="hidden" id="configId">
+
+                <div class="form-group">
+                    <label for="configName">配置名称 *</label>
+                    <input type="text" id="configName" required placeholder="例如：生产环境SFTP">
+                </div>
+
+                <div class="form-group">
+                    <label for="storageType">存储类型 *</label>
+                    <select id="storageType" required onchange="updateStorageConfigForm()">
+                        <option value="">请选择存储类型</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="configDescription">描述</label>
+                    <textarea id="configDescription" rows="2" placeholder="配置说明"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="targetAgent">目标Agent（留空为全局配置）</label>
+                    <input type="text" id="targetAgent" placeholder="Agent ID，留空则对所有Agent生效">
+                    <small style="color: #999;">指定Agent ID则此配置仅对该Agent生效</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="configPriority">优先级</label>
+                    <input type="number" id="configPriority" value="0" min="0" max="100">
+                    <small style="color: #999;">数字越大优先级越高，默认为0</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="configActive" checked>
+                        启用此配置
+                    </label>
+                </div>
+
+                <!-- 动态配置表单区域 -->
+                <div id="storageConfigFields" style="border-top: 1px solid #ddd; padding-top: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 15px;">存储配置参数</h3>
+                    <p style="color: #999;">请先选择存储类型</p>
+                </div>
+
+                <div id="storageConfigError" class="error-message" style="display: none;"></div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">保存配置</button>
+                    <button type="button" onclick="closeStorageConfigModal()" class="btn" style="flex: 1; background: #ccc;">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/js/admin.js"></script>
+    <script src="/static/js/storage-config.js"></script>
 </body>
 </html>
