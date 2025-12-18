@@ -3,8 +3,12 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
+# 设置Go代理以加速下载
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+ENV GO111MODULE=on
+
 # 复制 go.mod 和 go.sum
-COPY go.mod go.sum ./
+COPY server/go.mod server/go.sum ./
 
 # 安装编译需要的工具（包括 GCC）
 RUN apk add --no-cache git gcc musl-dev
@@ -13,7 +17,7 @@ RUN apk add --no-cache git gcc musl-dev
 RUN go mod download && go mod tidy
 
 # 复制源代码
-COPY . .
+COPY server/ .
 
 # 编译 Server（需要 CGO 支持 SQLite）
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod=mod -o server ./cmd
