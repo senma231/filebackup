@@ -9,7 +9,18 @@ import (
 
 // Load 加载配置文件
 func Load() (*Config, error) {
-	configPath := GetConfigPath()
+	// 优先尝试当前目录的 config.json
+	currentDirConfig := "config.json"
+	systemConfigPath := GetConfigPath()
+
+	var configPath string
+	if _, err := os.Stat(currentDirConfig); err == nil {
+		// 当前目录有 config.json，优先使用
+		configPath = currentDirConfig
+	} else {
+		// 使用系统默认路径
+		configPath = systemConfigPath
+	}
 
 	// 检查配置文件是否存在
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
