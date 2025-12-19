@@ -26,8 +26,8 @@ type Config struct {
 	Token        string `json:"token"`          // 认证令牌
 	HeartbeatInterval int `json:"heartbeat_interval"` // 心跳间隔(秒)
 
-	// SFTP配置
-	SFTPConfig SFTPConfig `json:"sftp_config"`
+	// SFTP配置（已废弃，保留仅为向后兼容，实际存储配置由Server端管理）
+	SFTPConfig SFTPConfig `json:"sftp_config,omitempty"`
 
 	// 系统配置
 	ServiceMode bool   `json:"service_mode"` // 是否Windows服务模式
@@ -109,13 +109,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("server_url cannot be empty")
 	}
 
-	if c.SFTPConfig.Host == "" {
-		return fmt.Errorf("sftp_config.host cannot be empty")
-	}
-
-	if c.SFTPConfig.Port <= 0 || c.SFTPConfig.Port > 65535 {
-		return fmt.Errorf("invalid sftp port: %d", c.SFTPConfig.Port)
-	}
+	// 注意：存储配置（SFTP/WebDAV/本地等）由 Server 端统一管理
+	// Agent 启动后会自动从 Server 获取存储配置，因此不再验证 SFTPConfig
 
 	if c.HeartbeatInterval <= 0 {
 		return fmt.Errorf("heartbeat_interval must be greater than 0")

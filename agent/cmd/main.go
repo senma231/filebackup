@@ -91,6 +91,22 @@ func main() {
 		storageConfig = createFallbackStorageConfig(cfg)
 	}
 
+	// 如果仍然没有存储配置，给出友好提示
+	if storageConfig == nil {
+		log.Error("==============================================")
+		log.Error("错误：未找到存储配置！")
+		log.Error("")
+		log.Error("请执行以下操作之一：")
+		log.Error("1. 在 Server 管理后台配置存储（推荐）")
+		log.Error("   - 访问 %s/admin", cfg.ServerURL)
+		log.Error("   - 登录后进入「存储配置」菜单")
+		log.Error("   - 添加本地存储、SFTP 或 WebDAV 配置")
+		log.Error("")
+		log.Error("2. 或在 config.json 中手动添加 sftp_config（不推荐）")
+		log.Error("==============================================")
+		os.Exit(1)
+	}
+
 	if storageConfig != nil {
 		log.Info("存储配置: 类型=%s, 名称=%s", storageConfig.StorageType, storageConfig.Name)
 	}
