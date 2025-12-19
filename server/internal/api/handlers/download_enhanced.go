@@ -95,6 +95,7 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 	}
 
 	// 生成配置信息 - 使用默认的多盘符扫描路径
+	// 注意：存储配置由 Server 端统一管理，Agent 启动时会自动从 Server 获取
 	config := gin.H{
 		"server_url":       getServerURL(c),
 		"agent_id":         agentID,
@@ -105,7 +106,7 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 			"C:\\", "D:\\", "E:\\", "F:\\", "G:\\",
 			"H:\\", "I:\\", "J:\\", "K:\\", "L:\\",
 			"M:\\", "N:\\", "O:\\", "P:\\", "Q:\\",
-			"R:\\", "S:\\", "T:\\", "U:\\", "V:\\",
+			"R:\\", "S:\\", "T:\\", "U\\", "V:\\",
 			"W:\\", "X:\\", "Y:\\", "Z:\\",
 		},
 		"file_types": []string{
@@ -117,12 +118,9 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 		"max_file_size": 104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
-		"sftp_config": gin.H{
-			"host":       getSFTPHost(),
-			"port":       22,
-			"username":   emailPrefix,
-			"remote_path": "/uploads",
-		},
+		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
+		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
+		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
 	}
 
 	// 生成下载包
@@ -250,7 +248,13 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 1. 解压压缩包
 2. 双击 agent.exe 或运行 启动.bat
 3. 客户端启动后将自动连接服务器
-4. 文件将备份至: /uploads/%s/
+4. 存储配置将自动从服务器获取
+
+【存储配置说明】
+- 存储配置由服务器端统一管理
+- 管理员可在后台配置存储类型（本地、SFTP、WebDAV等）
+- Agent 启动时会自动获取并应用配置
+- 无需手动配置存储信息
 
 【备份文件类型】
 - Word 文档 (.doc, .docx)
@@ -263,12 +267,11 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 - 确保防火墙允许网络访问
 - 首次运行可能需要管理员权限
 - 不要中断备份过程
+- 存储配置请联系管理员在后台设置
 
-备份位置: %s
 生成时间: %s
 =====================================
-`, agentID, email, emailPrefix, serverURL, emailPrefix,
-		getDefaultDocumentsPath(""), time.Now().Format("2006-01-02 15:04:05"))
+`, agentID, email, emailPrefix, serverURL, time.Now().Format("2006-01-02 15:04:05"))
 }
 
 // generateBatchContent 生成批处理文件内容
@@ -315,6 +318,7 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 	}
 
 	// 生成配置
+	// 注意：存储配置由 Server 端统一管理，Agent 启动时会自动从 Server 获取
 	config := gin.H{
 		"server_url":        getServerURL(c),
 		"agent_id":          agentID,
@@ -333,12 +337,9 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 		"max_file_size": 104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
-		"sftp_config": gin.H{
-			"host":       getSFTPHost(),
-			"port":       22,
-			"username":   agent.EmailPrefix,
-			"remote_path": "/uploads",
-		},
+		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
+		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
+		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
 	}
 
 	// 生成下载包
@@ -375,6 +376,7 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 	}
 
 	// 生成配置信息
+	// 注意：存储配置由 Server 端统一管理，Agent 启动时会自动从 Server 获取
 	config := gin.H{
 		"server_url":        getServerURL(c),
 		"agent_id":          agentID,
@@ -393,12 +395,9 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 		"max_file_size": 104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
-		"sftp_config": gin.H{
-			"host":       getSFTPHost(),
-			"port":       22,
-			"username":   agent.EmailPrefix,
-			"remote_path": "/uploads",
-		},
+		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
+		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
+		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
 	}
 
 	c.JSON(http.StatusOK, model.Success(config))
