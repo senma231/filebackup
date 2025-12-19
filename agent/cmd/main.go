@@ -5,14 +5,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"doc-scanner-agent/internal/api"
 	"doc-scanner-agent/internal/config"
 	"doc-scanner-agent/internal/heartbeat"
 	"doc-scanner-agent/internal/logger"
+	"doc-scanner-agent/internal/model"
 	"doc-scanner-agent/internal/scanner"
 	"doc-scanner-agent/internal/uploader"
 )
@@ -20,12 +23,12 @@ import (
 func main() {
 	// 初始化日志
 	log := logger.New()
-	log.Info("Starting Document Scanner Agent...")
+	log.Info("正在启动文档扫描Agent...")
 
 	// 检查是否已配置
 	isConfigured, err := config.IsConfigured()
 	if err != nil {
-		log.Error("Failed to check configuration: %v", err)
+		log.Error("检查配置失败: %v", err)
 		os.Exit(1)
 	}
 
@@ -41,23 +44,23 @@ func main() {
 			if cfgErr == nil && cfg.AgentID != "" && cfg.ServerURL != "" {
 				agentID = cfg.AgentID
 				serverURL = cfg.ServerURL
-				log.Info("Using configuration from config.json")
+				log.Info("使用config.json中的配置")
 			}
 		}
 
 		// 3. 如果仍然没有配置，显示错误
 		if agentID == "" || serverURL == "" {
-			log.Error("Agent not configured!")
-			log.Error("Please ensure one of the following:")
-			log.Error("1. config.json file exists with agent_id and server_url")
-			log.Error("2. Environment variables AGENT_ID and SERVER_URL are set")
-			log.Error("3. You are running from a downloaded package")
+			log.Error("Agent未配置!")
+			log.Error("请确保以下条件之一:")
+			log.Error("1. config.json文件存在且包含agent_id和server_url")
+			log.Error("2. 设置了环境变量AGENT_ID和SERVER_URL")
+			log.Error("3. 从下载包中运行")
 			os.Exit(1)
 		}
 
-		log.Info("Agent not configured, fetching config from server...")
+		log.Info("Agent未配置，正在从服务器获取配置...")
 		if err := config.SetupAgent(agentID, serverURL); err != nil {
-			log.Error("Failed to setup agent: %v", err)
+			log.Error("设置Agent失败: %v", err)
 			os.Exit(1)
 		}
 	}
@@ -65,67 +68,117 @@ func main() {
 	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
-		log.Error("Failed to load config: %v", err)
+		log.Error("加载配置失败: %v", err)
 		os.Exit(1)
 	}
-	log.Info("Config loaded successfully")
+	log.Info("配置加载成功")
+
+	// 创建存储配置客户端
+	storageClient := api.NewStorageClient(cfg.ServerURL)
+
+	// 从服务器获取存储配置
+	log.Info("正在从服务器获取存储配置...")
+	storageConfig, err := storageClient.GetStorageConfig(cfg.AgentID)
+	if err != nil {
+		log.Error("获取存储配置失败: %v", err)
+		log.Error("将使用本地配置中的SFTP配置作为后备方案")
+		storageConfig = createFallbackStorageConfig(cfg)
+	}
+
+	// 如果服务器没有配置，使用本地配置作为后备
+	if storageConfig == nil {
+		log.Warn("服务器未返回存储配置，使用本地SFTP配置")
+		storageConfig = createFallbackStorageConfig(cfg)
+	}
+
+	if storageConfig != nil {
+		log.Info("存储配置: 类型=%s, 名称=%s", storageConfig.StorageType, storageConfig.Name)
+	}
+
+	// 创建Uploader工厂
+	uploaderFactory := uploader.NewFactory(log)
+
+	// 检查存储类型是否已实现
+	if !uploaderFactory.IsSupportedType(storageConfig.StorageType) {
+		log.Error("存储类型 %s 暂未实现", storageConfig.StorageType)
+		log.Error("已支持的存储类型: %v", uploaderFactory.GetSupportedTypes())
+		os.Exit(1)
+	}
+
+	// 创建Uploader
+	uploadInstance, err := uploaderFactory.CreateUploader(storageConfig)
+	if err != nil {
+		log.Error("创建上传器失败: %v", err)
+		os.Exit(1)
+	}
+	log.Info("上传器创建成功: %s", uploadInstance.GetType())
 
 	// 初始化文件扫描器
 	scanEngine := scanner.NewEngine(cfg, log)
 
-	// 初始化文件上传器
-	sftpConfig := &uploader.Config{
-		Host:       cfg.SFTPConfig.Host,
-		Port:       cfg.SFTPConfig.Port,
-		Username:   cfg.SFTPConfig.Username,
-		Password:   cfg.SFTPConfig.Password,
-		KeyPath:    cfg.SFTPConfig.KeyPath,
-		RemotePath: cfg.SFTPConfig.RemotePath,
-		MaxRetries: 3,
-		RetryDelay: 5 * time.Second,
-	}
-	transfer := uploader.NewTransfer(cfg, sftpConfig, log)
+	// 创建文件传输管理器（使用新的TransferManager）
+	transferManager := uploader.NewTransferManager(cfg, uploadInstance, log)
 
 	// 初始化心跳服务
-	heartbeatSvc := heartbeat.NewService(cfg, log, transfer)
+	heartbeatSvc := heartbeat.NewService(cfg, log, transferManager)
 
 	// 创建上下文，用于优雅关闭
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// 启动各个服务
-	log.Info("Starting services...")
+	log.Info("正在启动服务...")
 
 	// 启动文件扫描器
 	go func() {
 		if err := scanEngine.Start(ctx); err != nil {
-			log.Error("Scanner service error: %v", err)
+			log.Error("文件扫描服务错误: %v", err)
 		}
 	}()
 
 	// 启动文件上传器
 	go func() {
-		if err := transfer.Start(ctx); err != nil {
-			log.Error("Uploader service error: %v", err)
+		if err := transferManager.Start(ctx); err != nil {
+			log.Error("文件上传服务错误: %v", err)
 		}
 	}()
 
 	// 启动心跳服务
 	go func() {
 		if err := heartbeatSvc.Start(ctx); err != nil {
-			log.Error("Heartbeat service error: %v", err)
+			log.Error("心跳服务错误: %v", err)
+		}
+	}()
+
+	// 启动文件同步协程（将扫描到的文件添加到上传队列）
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				files := scanEngine.GetFiles()
+				if len(files) > 0 {
+					transferManager.AddFiles(files)
+					log.Debug("已将 %d 个文件添加到上传队列", len(files))
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
 	// 控制台模式运行
-	log.Info("Agent running in console mode. Press Ctrl+C to exit.")
+	log.Info("Agent正在以控制台模式运行。按Ctrl+C退出。")
+	log.Info("存储类型: %s", transferManager.GetStorageType())
 
 	// 等待中断信号
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	log.Info("Shutting down agent...")
+	log.Info("正在关闭Agent...")
 
 	// 等待服务优雅关闭
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -138,18 +191,55 @@ func main() {
 	<-time.After(2 * time.Second)
 
 	// 停止各个服务
-	if err := transfer.Stop(); err != nil {
-		log.Error("Error stopping uploader: %v", err)
+	if err := transferManager.Stop(); err != nil {
+		log.Error("停止上传器时出错: %v", err)
 	}
 	if err := heartbeatSvc.Stop(); err != nil {
-		log.Error("Error stopping heartbeat service: %v", err)
+		log.Error("停止心跳服务时出错: %v", err)
 	}
 
 	// 等待关闭完成或超时
 	select {
 	case <-shutdownCtx.Done():
-		log.Warn("Shutdown timeout, forcing exit")
+		log.Warn("关闭超时，强制退出")
 	default:
-		log.Info("Agent stopped gracefully")
+		log.Info("Agent已优雅停止")
 	}
+}
+
+// createFallbackStorageConfig 创建后备存储配置（使用本地配置中的SFTP）
+func createFallbackStorageConfig(cfg *config.Config) *model.StorageConfig {
+	// 如果本地配置中没有SFTP配置，返回nil
+	if cfg.SFTPConfig.Host == "" {
+		return nil
+	}
+
+	// 构造SFTP配置JSON
+	sftpConfigJSON := `{
+		"host": "` + cfg.SFTPConfig.Host + `",
+		"port": ` + toString(cfg.SFTPConfig.Port) + `,
+		"username": "` + cfg.SFTPConfig.Username + `",
+		"password": "` + cfg.SFTPConfig.Password + `",
+		"key_path": "` + cfg.SFTPConfig.KeyPath + `",
+		"remote_path": "` + cfg.SFTPConfig.RemotePath + `",
+		"timeout": 30
+	}`
+
+	return &model.StorageConfig{
+		Name:        "本地SFTP配置（后备）",
+		StorageType: model.StorageTypeSFTP,
+		ConfigData:  sftpConfigJSON,
+		IsActive:    true,
+		Description: "从本地config.json加载的SFTP配置",
+		Priority:    0,
+	}
+}
+
+// toString 将int转为字符串
+func toString(n int) string {
+	if n == 0 {
+		return "22"
+	}
+	// 使用fmt.Sprintf更可靠
+	return fmt.Sprintf("%d", n)
 }
