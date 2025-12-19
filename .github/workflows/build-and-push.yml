@@ -30,6 +30,7 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: '0'
         run: |
+          go mod tidy
           go mod download
           go build -o agent.exe ./cmd
 
