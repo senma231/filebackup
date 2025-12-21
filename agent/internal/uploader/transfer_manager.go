@@ -147,12 +147,19 @@ func (tm *TransferManager) generateRemotePath(file *scanner.FileInfo) string {
 		emailPrefix = "anonymous"
 	}
 
+	// 获取Agent ID（用于区分同一邮箱的多个Agent）
+	agentID := tm.agentConfig.AgentID
+	if agentID == "" {
+		agentID = "unknown"
+	}
+
 	// 使用日期作为子目录
 	date := file.ModifiedTime.Format("2006-01-02")
 	filename := filepath.Base(file.Path)
 
-	// 构建远程路径：邮箱前缀/日期/文件名
-	remotePath := filepath.Join(emailPrefix, date, filename)
+	// 构建远程路径：邮箱前缀/AgentID/日期/文件名
+	// 这样即使多个Agent使用同一邮箱，每个Agent的文件也会存储在不同的子文件夹中
+	remotePath := filepath.Join(emailPrefix, agentID, date, filename)
 
 	return filepath.ToSlash(remotePath)
 }
