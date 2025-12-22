@@ -3,6 +3,7 @@ module doc-scanner-agent
 go 1.21
 
 require (
+	github.com/kardianos/service v1.2.2
 	github.com/pkg/sftp v1.13.10
 	github.com/studio-b12/gowebdav v0.9.0
 	golang.org/x/crypto v0.46.0
