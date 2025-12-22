@@ -50,7 +50,7 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 	}
 
 	// 获取该Agent的存储配置
-	storageConfig, err := h.storageRepo.GetActiveConfigForAgent(agentID)
+	storageConfig, err := h.storageRepo.GetByAgentID(agentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get storage config"))
 		return
