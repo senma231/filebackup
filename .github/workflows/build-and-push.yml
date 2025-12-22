@@ -88,6 +88,13 @@ jobs:
           echo "### Windows Agent" >> $GITHUB_STEP_SUMMARY
           echo "已上传为 Artifact: **agent-windows-amd64**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**文件信息：**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh server/agent_bin/agent.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "文件大小信息不可用" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sha256sum server/agent_bin/agent.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "SHA256校验不可用" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 部署命令" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ghcr.io/${{ steps.repo_owner.outputs.owner }}/doc-scanner-server:latest" >> $GITHUB_STEP_SUMMARY
