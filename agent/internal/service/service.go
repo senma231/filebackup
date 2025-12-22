@@ -21,7 +21,7 @@ import (
 type AgentService struct {
 	cfg             *config.Config
 	log             *logger.Logger
-	scanEngine      *scanner.Engine
+	scanEngine      *scanner.Scanner
 	transferManager *uploader.TransferManager
 	heartbeatSvc    *heartbeat.Service
 	ctx             context.Context
