@@ -16,11 +16,11 @@ import (
 
 // UploadHandler 文件上传处理器
 type UploadHandler struct {
-	storageRepo *repository.StorageRepository
+	storageRepo *repository.StorageConfigRepository
 }
 
 // NewUploadHandler 创建文件上传处理器
-func NewUploadHandler(storageRepo *repository.StorageRepository) *UploadHandler {
+func NewUploadHandler(storageRepo *repository.StorageConfigRepository) *UploadHandler {
 	return &UploadHandler{
 		storageRepo: storageRepo,
 	}
