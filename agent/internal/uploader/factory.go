@@ -9,13 +9,17 @@ import (
 
 // Factory Uploader工厂
 type Factory struct {
-	logger Logger
+	logger    Logger
+	serverURL string
+	agentID   string
 }
 
 // NewFactory 创建Uploader工厂
-func NewFactory(logger Logger) *Factory {
+func NewFactory(logger Logger, serverURL, agentID string) *Factory {
 	return &Factory{
-		logger: logger,
+		logger:    logger,
+		serverURL: serverURL,
+		agentID:   agentID,
 	}
 }
 
@@ -94,7 +98,8 @@ func (f *Factory) createLocalUploader(storageConfig *model.StorageConfig) (Uploa
 		return nil, fmt.Errorf("解析本地存储配置失败: %w", err)
 	}
 
-	return NewLocalUploader(&config, f.logger), nil
+	// 本地存储通过HTTP API上传，需要serverURL和agentID
+	return NewLocalUploader(&config, f.serverURL, f.agentID, f.logger), nil
 }
 
 // GetSupportedTypes 获取支持的存储类型列表

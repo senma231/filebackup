@@ -8,6 +8,7 @@ import (
 
 	"doc-scanner-server/internal/api/handlers"
 	"doc-scanner-server/internal/api/middleware"
+	"doc-scanner-server/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +40,10 @@ func (s *Server) Start(addr string) error {
 	reportHandler := handlers.NewReportHandler(s.db)
 	downloadHandler := handlers.NewDownloadHandler(s.db)
 	storageHandler := handlers.NewStorageConfigHandler(s.db)
+
+	// 为上传handler创建storage repository
+	storageRepo := repository.NewStorageConfigRepository(s.db)
+	uploadHandler := handlers.NewUploadHandler(storageRepo)
 
 	// 获取可执行文件所在目录
 	execPath, err := os.Executable()
@@ -93,6 +98,8 @@ func (s *Server) Start(addr string) error {
 
 		// 文件上传相关接口
 		v1.POST("/agents/:agent_id/upload/progress", fileHandler.UploadProgress)
+		// 本地存储文件上传（Agent通过HTTP上传文件到Server本地存储）
+		v1.POST("/files/upload", uploadHandler.UploadFile)
 	}
 
 	// 认证相关路由

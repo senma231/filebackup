@@ -1,82 +1,72 @@
 package uploader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"doc-scanner-agent/internal/model"
 )
 
-// LocalUploader 本地存储上传器（实现Uploader接口）
+// LocalUploader 本地存储上传器（通过HTTP API上传到Server）
 type LocalUploader struct {
-	config *model.LocalConfig
-	logger Logger
+	config    *model.LocalConfig
+	logger    Logger
+	serverURL string
+	agentID   string
+	client    *http.Client
 }
 
 // NewLocalUploader 创建本地存储上传器
-func NewLocalUploader(config *model.LocalConfig, logger Logger) *LocalUploader {
+func NewLocalUploader(config *model.LocalConfig, serverURL, agentID string, logger Logger) *LocalUploader {
 	return &LocalUploader{
-		config: config,
-		logger: logger,
+		config:    config,
+		logger:    logger,
+		serverURL: serverURL,
+		agentID:   agentID,
+		client: &http.Client{
+			Timeout: 0, // 不设置超时，因为大文件上传可能需要较长时间
+		},
 	}
 }
 
-// Connect 验证本地存储路径
+// Connect 测试与Server的连接
 func (u *LocalUploader) Connect() error {
-	u.logger.Info("正在验证本地存储路径 %s...", u.config.BasePath)
+	u.logger.Info("正在测试与Server的连接...")
 
-	// 检查路径是否存在
-	info, err := os.Stat(u.config.BasePath)
+	// 测试连接（访问健康检查endpoint）
+	healthURL := fmt.Sprintf("%s/health", u.serverURL)
+	resp, err := u.client.Get(healthURL)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// 路径不存在
-			if u.config.CreateDir {
-				// 创建目录
-				if err := os.MkdirAll(u.config.BasePath, 0755); err != nil {
-					return fmt.Errorf("创建存储目录失败: %w", err)
-				}
-				u.logger.Info("已创建存储目录: %s", u.config.BasePath)
-			} else {
-				return fmt.Errorf("存储路径不存在: %s", u.config.BasePath)
-			}
-		} else {
-			return fmt.Errorf("访问存储路径失败: %w", err)
-		}
-	} else {
-		// 路径存在，检查是否为目录
-		if !info.IsDir() {
-			return fmt.Errorf("存储路径不是目录: %s", u.config.BasePath)
-		}
+		return fmt.Errorf("无法连接到Server: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Server响应异常，状态码: %d", resp.StatusCode)
 	}
 
-	// 检查读写权限（尝试创建临时文件）
-	testFile := filepath.Join(u.config.BasePath, ".test_write_permission")
-	f, err := os.Create(testFile)
-	if err != nil {
-		return fmt.Errorf("存储路径无写入权限: %w", err)
-	}
-	f.Close()
-	os.Remove(testFile)
-
-	u.logger.Info("本地存储路径验证成功")
+	u.logger.Info("成功连接到Server")
 	return nil
 }
 
-// Disconnect 断开连接（本地存储无需操作）
+// Disconnect 断开连接
 func (u *LocalUploader) Disconnect() error {
 	u.logger.Info("本地存储上传器已关闭")
 	return nil
 }
 
-// UploadFile 上传单个文件（复制到本地目录）
+// UploadFile 上传单个文件（通过HTTP API）
 func (u *LocalUploader) UploadFile(localPath, remotePath string) error {
 	return u.UploadFileWithContext(context.Background(), localPath, remotePath)
 }
 
-// UploadFileWithContext 带上下文的文件上传
+// UploadFileWithContext 带上下文的文件上传（通过HTTP API）
 func (u *LocalUploader) UploadFileWithContext(ctx context.Context, localPath, remotePath string) error {
 	// 检查上下文是否已取消
 	select {
@@ -85,78 +75,74 @@ func (u *LocalUploader) UploadFileWithContext(ctx context.Context, localPath, re
 	default:
 	}
 
-	// 构建目标路径
-	destPath := filepath.Join(u.config.BasePath, remotePath)
-
-	// 确保目标目录存在
-	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return fmt.Errorf("创建目标目录失败: %w", err)
-	}
-
-	// 打开源文件
-	srcFile, err := os.Open(localPath)
+	// 打开本地文件
+	file, err := os.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("打开源文件失败: %w", err)
+		return fmt.Errorf("无法打开文件: %w", err)
 	}
-	defer srcFile.Close()
+	defer file.Close()
 
 	// 获取文件信息
-	srcInfo, err := srcFile.Stat()
+	fileInfo, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("获取文件信息失败: %w", err)
+		return fmt.Errorf("无法获取文件信息: %w", err)
 	}
 
-	u.logger.Debug("正在复制 %s 到 %s (大小: %d 字节)", localPath, destPath, srcInfo.Size())
+	u.logger.Info("正在上传文件到Server: %s (大小: %d 字节)", filepath.Base(localPath), fileInfo.Size())
 
-	// 创建目标文件
-	destFile, err := os.Create(destPath)
+	// 创建multipart form
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// 添加agent_id字段
+	if err := writer.WriteField("agent_id", u.agentID); err != nil {
+		return fmt.Errorf("无法写入agent_id字段: %w", err)
+	}
+
+	// 添加remote_path字段
+	if err := writer.WriteField("remote_path", remotePath); err != nil {
+		return fmt.Errorf("无法写入remote_path字段: %w", err)
+	}
+
+	// 添加文件字段
+	part, err := writer.CreateFormFile("file", filepath.Base(localPath))
 	if err != nil {
-		return fmt.Errorf("创建目标文件失败: %w", err)
-	}
-	defer destFile.Close()
-
-	// 复制文件内容（支持上下文取消）
-	buf := make([]byte, 32*1024) // 32KB 缓冲区
-	var written int64
-	for {
-		// 检查上下文是否已取消
-		select {
-		case <-ctx.Done():
-			// 删除未完成的目标文件
-			destFile.Close()
-			os.Remove(destPath)
-			return ctx.Err()
-		default:
-		}
-
-		nr, er := srcFile.Read(buf)
-		if nr > 0 {
-			nw, ew := destFile.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				return fmt.Errorf("写入目标文件失败: %w", ew)
-			}
-			if nr != nw {
-				return fmt.Errorf("写入字节数不匹配")
-			}
-		}
-		if er != nil {
-			if er != io.EOF {
-				return fmt.Errorf("读取源文件失败: %w", er)
-			}
-			break
-		}
+		return fmt.Errorf("无法创建文件字段: %w", err)
 	}
 
-	// 保留源文件的权限
-	if err := destFile.Chmod(srcInfo.Mode()); err != nil {
-		u.logger.Warn("设置文件权限失败: %v", err)
+	// 复制文件内容到multipart form
+	if _, err := io.Copy(part, file); err != nil {
+		return fmt.Errorf("无法复制文件内容: %w", err)
 	}
 
-	u.logger.Info("成功复制文件到 %s (大小: %d 字节)", destPath, written)
+	// 关闭multipart writer
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("无法关闭multipart writer: %w", err)
+	}
+
+	// 创建HTTP请求
+	uploadURL := fmt.Sprintf("%s/api/v1/files/upload", u.serverURL)
+	req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, body)
+	if err != nil {
+		return fmt.Errorf("无法创建HTTP请求: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// 发送HTTP请求
+	resp, err := u.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("HTTP请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Server返回错误 (状态码: %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	u.logger.Info("成功上传文件到Server: %s", filepath.Base(localPath))
 	return nil
 }
 
@@ -164,16 +150,23 @@ func (u *LocalUploader) UploadFileWithContext(ctx context.Context, localPath, re
 func (u *LocalUploader) UploadFiles(files map[string]string) error {
 	for localPath, remotePath := range files {
 		if err := u.UploadFile(localPath, remotePath); err != nil {
-			u.logger.Error("复制文件 %s 失败: %v", localPath, err)
+			u.logger.Error("上传文件 %s 失败: %v", localPath, err)
 			return err
 		}
 	}
 	return nil
 }
 
-// IsConnected 检查是否已连接（本地存储始终连接）
+// IsConnected 检查是否已连接
 func (u *LocalUploader) IsConnected() bool {
-	return true
+	// 简单测试：尝试访问健康检查endpoint
+	healthURL := fmt.Sprintf("%s/health", u.serverURL)
+	resp, err := u.client.Get(healthURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 // GetType 获取存储类型

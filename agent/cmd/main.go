@@ -112,7 +112,7 @@ func main() {
 	}
 
 	// 创建Uploader工厂
-	uploaderFactory := uploader.NewFactory(log)
+	uploaderFactory := uploader.NewFactory(log, cfg.ServerURL, cfg.AgentID)
 
 	// 检查存储类型是否已实现
 	if !uploaderFactory.IsSupportedType(storageConfig.StorageType) {
