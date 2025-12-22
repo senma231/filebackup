@@ -39,11 +39,19 @@ jobs:
       - name: Show agent file
         run: ls -l agent/agent.exe || true
 
-      - name: Upload agent.exe as artifact
+      - name: Prepare agent package
+        run: |
+          mkdir -p agent-package
+          cp agent/agent.exe agent-package/
+          cp agent/*.bat agent-package/ || true
+          cp agent/README.md agent-package/ || true
+          ls -lh agent-package/
+
+      - name: Upload agent package as artifact
         uses: actions/upload-artifact@v4
         with:
           name: agent-windows-amd64
-          path: agent/agent.exe
+          path: agent-package/
           retention-days: 90
 
       - name: Copy agent to server directory

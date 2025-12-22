@@ -80,6 +80,7 @@ func (h *DownloadHandler) RequestDownload(c *gin.Context) {
 		"email":            req.Email,
 		"email_prefix":     emailPrefix,
 		"heartbeat_interval": 30,
+		"full_disk_scan":   true, // 默认启用全盘扫描
 		"scan_paths": []string{
 			getDefaultDocumentsPath(req.Hostname),
 		},
@@ -136,6 +137,7 @@ func (h *DownloadHandler) GetAgentConfig(c *gin.Context) {
 		"email":             agent.Email,
 		"email_prefix":      agent.EmailPrefix,
 		"heartbeat_interval": 30,
+		"full_disk_scan":    true, // 默认启用全盘扫描
 		"scan_paths": []string{
 			getDefaultDocumentsPath(agent.Hostname),
 		},
