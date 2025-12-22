@@ -32,7 +32,9 @@ jobs:
         run: |
           go mod tidy
           go mod download
-          go build -o agent.exe ./cmd
+          go build -v -ldflags="-s -w" -trimpath -o agent.exe ./cmd
+          file agent.exe || true
+          ls -lh agent.exe
 
       - name: Show agent file
         run: ls -l agent/agent.exe || true
