@@ -96,16 +96,32 @@ func (s *Scanner) resultWorker(ctx context.Context) {
 
 // FullScan 执行全量扫描
 func (s *Scanner) FullScan() error {
-	s.logger.Info("Starting full scan of %d paths", len(s.config.ScanPaths))
+	var scanPaths []string
+
+	// 根据配置决定扫描路径
+	if s.config.FullDiskScan {
+		s.logger.Info("Starting full disk scan (all available drives)")
+		// 获取所有可用驱动器
+		drives := s.getAllDrives()
+		if len(drives) == 0 {
+			s.logger.Warn("No available drives found")
+			return fmt.Errorf("no available drives found")
+		}
+		scanPaths = drives
+		s.logger.Info("Found %d available drive(s): %v", len(drives), drives)
+	} else {
+		s.logger.Info("Starting scan of %d configured paths", len(s.config.ScanPaths))
+		scanPaths = s.config.ScanPaths
+	}
 
 	// 清空之前的文件列表
 	s.mu.Lock()
 	s.files = s.files[:0]
 	s.mu.Unlock()
 
-	// 扫描所有路径，过滤不存在的盘符
-	for _, path := range s.config.ScanPaths {
-		// 检查路径是否存在（特别是盘符）
+	// 扫描所有路径，过滤不存在的路径
+	for _, path := range scanPaths {
+		// 检查路径是否存在
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			s.logger.Debug("Path does not exist, skipping: %s", path)
 			continue
@@ -119,6 +135,24 @@ func (s *Scanner) FullScan() error {
 	}
 
 	return nil
+}
+
+// getAllDrives 获取所有可用的驱动器（Windows）
+func (s *Scanner) getAllDrives() []string {
+	var drives []string
+
+	// 在 Windows 上检查 A-Z 所有可能的驱动器号
+	for drive := 'A'; drive <= 'Z'; drive++ {
+		drivePath := string(drive) + ":\\"
+
+		// 检查驱动器是否存在且可访问
+		if _, err := os.Stat(drivePath); err == nil {
+			drives = append(drives, drivePath)
+			s.logger.Debug("Found available drive: %s", drivePath)
+		}
+	}
+
+	return drives
 }
 
 // scanPath 扫描单个路径

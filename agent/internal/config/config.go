@@ -10,7 +10,8 @@ import (
 // Config Agent配置结构
 type Config struct {
 	// 扫描配置
-	ScanPaths     []string `json:"scan_paths"`      // 扫描路径列表
+	FullDiskScan  bool     `json:"full_disk_scan"`  // 是否全盘扫描（优先级高于ScanPaths）
+	ScanPaths     []string `json:"scan_paths"`      // 扫描路径列表（仅当FullDiskScan=false时使用）
 	FileTypes     []string `json:"file_types"`      // 文件类型
 	ExcludePatterns []string `json:"exclude_patterns"` // 排除模式
 	MaxFileSize   int64    `json:"max_file_size"`   // 最大文件大小(字节)
@@ -52,7 +53,10 @@ type SFTPConfig struct {
 // DefaultConfig 获取默认配置
 func DefaultConfig() *Config {
 	return &Config{
+		FullDiskScan: true, // 默认启用全盘扫描
 		ScanPaths: []string{
+			// 当FullDiskScan=true时，此配置被忽略
+			// 当FullDiskScan=false时，使用以下路径
 			getDefaultDocumentsPath(),
 		},
 		FileTypes: []string{
@@ -101,8 +105,9 @@ func getDefaultLogPath() string {
 
 // Validate 验证配置
 func (c *Config) Validate() error {
-	if len(c.ScanPaths) == 0 {
-		return fmt.Errorf("scan_paths cannot be empty")
+	// 如果启用了全盘扫描，不需要验证ScanPaths
+	if !c.FullDiskScan && len(c.ScanPaths) == 0 {
+		return fmt.Errorf("scan_paths cannot be empty when full_disk_scan is false")
 	}
 
 	if c.ServerURL == "" {
