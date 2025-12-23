@@ -196,10 +196,10 @@ func (r *StorageConfigRepository) GetByAgentID(agentID string) (*model.StorageCo
 		return nil, err
 	}
 
-	// 未找到专属配置，查找全局配置
+	// 未找到专属配置，查找全局配置（兼容 NULL 和空字符串两种情况）
 	query = `SELECT id, name, storage_type, config_data, is_active, description, target_agent_id, priority, created_at, updated_at
 			 FROM storage_configs
-			 WHERE target_agent_id IS NULL AND is_active = 1
+			 WHERE (target_agent_id IS NULL OR target_agent_id = '') AND is_active = 1
 			 ORDER BY priority DESC, created_at DESC
 			 LIMIT 1`
 

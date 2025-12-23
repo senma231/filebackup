@@ -127,12 +127,18 @@ func (h *StorageConfigHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// 处理空字符串的 target_agent_id，将其转换为 nil（用于全局配置）
+	targetAgentID := req.TargetAgentID
+	if targetAgentID != nil && *targetAgentID == "" {
+		targetAgentID = nil
+	}
+
 	config := &model.StorageConfig{
 		Name:          req.Name,
 		StorageType:   req.StorageType,
 		ConfigData:    req.ConfigData,
 		Description:   req.Description,
-		TargetAgentID: req.TargetAgentID,
+		TargetAgentID: targetAgentID,
 		Priority:      req.Priority,
 		IsActive:      req.IsActive,
 	}
@@ -199,7 +205,12 @@ func (h *StorageConfigHandler) Update(c *gin.Context) {
 		existingConfig.Description = *req.Description
 	}
 	if req.TargetAgentID != nil {
-		existingConfig.TargetAgentID = req.TargetAgentID
+		// 处理空字符串的 target_agent_id，将其转换为 nil（用于全局配置）
+		if *req.TargetAgentID == "" {
+			existingConfig.TargetAgentID = nil
+		} else {
+			existingConfig.TargetAgentID = req.TargetAgentID
+		}
 	}
 	if req.Priority != nil {
 		existingConfig.Priority = *req.Priority
