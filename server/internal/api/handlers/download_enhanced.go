@@ -94,7 +94,7 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 		return
 	}
 
-	// 生成配置信息 - 使用默认的多盘符扫描路径
+	// 生成配置信息 - 启用全盘扫描
 	// 注意：存储配置由 Server 端统一管理，Agent 启动时会自动从 Server 获取
 	config := gin.H{
 		"server_url":       getServerURL(c),
@@ -102,12 +102,10 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 		"email":            req.Email,
 		"email_prefix":     emailPrefix,
 		"heartbeat_interval": 30,
-		"scan_paths": []string{ // 默认扫描所有盘符
-			"C:\\", "D:\\", "E:\\", "F:\\", "G:\\",
-			"H:\\", "I:\\", "J:\\", "K:\\", "L:\\",
-			"M:\\", "N:\\", "O:\\", "P:\\", "Q:\\",
-			"R:\\", "S:\\", "T:\\", "U\\", "V:\\",
-			"W:\\", "X:\\", "Y:\\", "Z:\\",
+		"full_disk_scan":   true, // 启用全盘扫描，自动检测并扫描所有可用驱动器
+		"scan_paths": []string{
+			// 仅当 full_disk_scan=false 时使用
+			"C:\\Users\\%USERNAME%\\Documents",
 		},
 		"file_types": []string{
 			".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt",

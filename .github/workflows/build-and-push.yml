@@ -45,10 +45,7 @@ jobs:
           cp agent/agent.exe agent-package/
           cp agent/*.bat agent-package/ || true
           cp agent/README.md agent-package/ || true
-          mkdir -p agent-package/configs
-          cp -r agent/configs/* agent-package/configs/ || true
           ls -lh agent-package/
-          ls -lh agent-package/configs/ || true
 
       - name: Upload agent package as artifact
         uses: actions/upload-artifact@v4
