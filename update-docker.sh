@@ -2,6 +2,12 @@
 
 echo "=== 更新 Docker 容器 ==="
 
+# 0. 创建数据目录
+echo "0. 准备数据目录..."
+DATA_DIR="/home/doc-scanner/data"
+mkdir -p "$DATA_DIR"
+echo "   数据目录: $DATA_DIR"
+
 # 1. 停止并删除旧容器
 echo "1. 停止旧容器..."
 docker stop doc-scanner-server 2>/dev/null || true
@@ -16,7 +22,7 @@ echo "3. 启动新容器..."
 docker run -d \
   --name doc-scanner-server \
   -p 8889:8889 \
-  -v doc-scanner-data:/app/data \
+  -v "$DATA_DIR":/app/data \
   --restart unless-stopped \
   ghcr.io/senma231/doc-scanner-server:latest
 
