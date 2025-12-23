@@ -103,13 +103,18 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 
 	var req struct {
 		Email     string `json:"email"`
+		Hostname  string `json:"hostname"`
+		IPAddress string `json:"ip_address"`
 		Status    string `json:"status"`
-		CPUUsage  float64 `json:"cpu_usage"`
-		MemoryUsage int64 `json:"memory_usage"`
-		DiskUsage int64 `json:"disk_usage"`
-		ScanCount int `json:"scan_count"`
-		UploadCount int `json:"upload_count"`
-		ErrorCount int `json:"error_count"`
+		Stats     struct {
+			CPUUsage    float64 `json:"cpu_usage"`
+			MemoryUsage int64   `json:"memory_usage"`
+			DiskUsage   int64   `json:"disk_usage"`
+			ScanCount   int     `json:"scan_count"`
+			UploadCount int     `json:"upload_count"`
+			ErrorCount  int     `json:"error_count"`
+		} `json:"stats"`
+		Timestamp time.Time `json:"timestamp"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,22 +122,42 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 		return
 	}
 
-	// 更新心跳
+	// 更新心跳和Agent信息
 	stats := model.SystemStats{
-		CPUUsage:    req.CPUUsage,
-		MemoryUsage: req.MemoryUsage,
-		DiskUsage:   req.DiskUsage,
-		ScanCount:   req.ScanCount,
-		UploadCount: req.UploadCount,
-		ErrorCount:  req.ErrorCount,
+		CPUUsage:    req.Stats.CPUUsage,
+		MemoryUsage: req.Stats.MemoryUsage,
+		DiskUsage:   req.Stats.DiskUsage,
+		ScanCount:   req.Stats.ScanCount,
+		UploadCount: req.Stats.UploadCount,
+		ErrorCount:  req.Stats.ErrorCount,
 	}
 
-	// 如果心跳中包含邮箱信息，更新Agent的邮箱
-	if req.Email != "" {
-		emailPrefix := extractEmailPrefix(req.Email)
-		if agent, err := h.repo.GetByID(agentID); err == nil && agent != nil {
+	// 更新Agent的基本信息（邮箱、主机名、IP地址）
+	if agent, err := h.repo.GetByID(agentID); err == nil && agent != nil {
+		updated := false
+
+		if req.Email != "" && agent.Email != req.Email {
 			agent.Email = req.Email
-			agent.EmailPrefix = emailPrefix
+			agent.EmailPrefix = extractEmailPrefix(req.Email)
+			updated = true
+		}
+
+		if req.Hostname != "" && agent.Hostname != req.Hostname {
+			agent.Hostname = req.Hostname
+			updated = true
+		}
+
+		if req.IPAddress != "" && agent.IPAddress != req.IPAddress {
+			agent.IPAddress = req.IPAddress
+			updated = true
+		}
+
+		if req.Status != "" && agent.Status != req.Status {
+			agent.Status = req.Status
+			updated = true
+		}
+
+		if updated {
 			agent.UpdatedAt = time.Now()
 			h.repo.Update(agent)
 		}

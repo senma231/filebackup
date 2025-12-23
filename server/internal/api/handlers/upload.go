@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"doc-scanner-server/internal/model"
 	"doc-scanner-server/internal/repository"
@@ -17,12 +18,14 @@ import (
 // UploadHandler 文件上传处理器
 type UploadHandler struct {
 	storageRepo *repository.StorageConfigRepository
+	fileRepo    *repository.FileRepository
 }
 
 // NewUploadHandler 创建文件上传处理器
-func NewUploadHandler(storageRepo *repository.StorageConfigRepository) *UploadHandler {
+func NewUploadHandler(storageRepo *repository.StorageConfigRepository, fileRepo *repository.FileRepository) *UploadHandler {
 	return &UploadHandler{
 		storageRepo: storageRepo,
+		fileRepo:    fileRepo,
 	}
 }
 
@@ -119,6 +122,27 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, fmt.Sprintf("Failed to save file: %v", err)))
 		return
+	}
+
+	// 记录文件上传到数据库
+	now := time.Now()
+	fileRecord := &model.FileUpload{
+		AgentID:         agentID,
+		LocalPath:       "",                      // Agent本地路径未传递
+		RemotePath:      remotePath,
+		FileName:        filepath.Base(remotePath),
+		FileSize:        written,
+		FileType:        filepath.Ext(remotePath),
+		UploadStatus:    model.FileStatusSuccess,
+		UploadStartTime: &now,
+		UploadEndTime:   &now,
+		RetryCount:      0,
+		CreatedAt:       now,
+	}
+
+	if err := h.fileRepo.Create(fileRecord); err != nil {
+		// 记录失败不影响上传成功响应，只记录日志
+		// 可以考虑后续添加日志系统
 	}
 
 	// 返回成功响应

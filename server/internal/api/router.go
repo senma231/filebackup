@@ -41,9 +41,10 @@ func (s *Server) Start(addr string) error {
 	downloadHandler := handlers.NewDownloadHandler(s.db)
 	storageHandler := handlers.NewStorageConfigHandler(s.db)
 
-	// 为上传handler创建storage repository
+	// 为上传handler创建storage repository和file repository
 	storageRepo := repository.NewStorageConfigRepository(s.db)
-	uploadHandler := handlers.NewUploadHandler(storageRepo)
+	fileRepo := repository.NewFileRepository(s.db)
+	uploadHandler := handlers.NewUploadHandler(storageRepo, fileRepo)
 
 	// 获取可执行文件所在目录
 	execPath, err := os.Executable()
