@@ -30,11 +30,36 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: '0'
         run: |
+          echo "=== Building Windows Agent (64-bit) ==="
+          echo "Go version:"
+          go version
+          echo ""
+          echo "Environment:"
+          echo "GOOS=$GOOS"
+          echo "GOARCH=$GOARCH"
+          echo "CGO_ENABLED=$CGO_ENABLED"
+          echo ""
+
           go mod tidy
           go mod download
-          go build -v -ldflags="-s -w" -trimpath -o agent.exe ./cmd
-          file agent.exe || true
+
+          echo "Building agent.exe..."
+          go build -v -ldflags="-s -w -H windowsgui" -trimpath -o agent.exe ./cmd
+
+          echo ""
+          echo "=== Build completed ==="
+          file agent.exe || echo "file command not available"
           ls -lh agent.exe
+
+          # 验证是否为PE32+（64位）格式
+          if command -v file > /dev/null; then
+            if file agent.exe | grep -q "PE32+"; then
+              echo "✅ Successfully built 64-bit Windows executable"
+            elif file agent.exe | grep -q "PE32"; then
+              echo "❌ WARNING: Built 32-bit executable instead of 64-bit!"
+              exit 1
+            fi
+          fi
 
       - name: Show agent file
         run: ls -l agent/agent.exe || true

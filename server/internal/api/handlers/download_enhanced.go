@@ -223,15 +223,26 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 	if v, ok := config["email"].(string); ok {
 		email = v
 	}
-	
+
 	emailPrefix := ""
 	if v, ok := config["email_prefix"].(string); ok {
 		emailPrefix = v
 	}
-	
+
 	serverURL := ""
 	if v, ok := config["server_url"].(string); ok {
 		serverURL = v
+	}
+
+	// 检查是否启用了全盘扫描
+	fullDiskScan := true
+	if v, ok := config["full_disk_scan"].(bool); ok {
+		fullDiskScan = v
+	}
+
+	scanMode := "全盘扫描模式（自动检测并扫描所有可用驱动器 C:, D:, E: 等）"
+	if !fullDiskScan {
+		scanMode = "指定路径扫描模式（仅扫描配置文件中指定的目录）"
 	}
 
 	return fmt.Sprintf(`文件备份系统 - 备份客户端
@@ -247,6 +258,9 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 2. 双击 agent.exe 或运行 启动.bat
 3. 客户端启动后将自动连接服务器
 4. 存储配置将自动从服务器获取
+
+【扫描模式】
+%s
 
 【存储配置说明】
 - 存储配置由服务器端统一管理
@@ -266,10 +280,11 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 - 首次运行可能需要管理员权限
 - 不要中断备份过程
 - 存储配置请联系管理员在后台设置
+- 原文件不会被删除或移动，仅上传副本
 
 生成时间: %s
 =====================================
-`, agentID, email, emailPrefix, serverURL, time.Now().Format("2006-01-02 15:04:05"))
+`, agentID, email, emailPrefix, serverURL, scanMode, time.Now().Format("2006-01-02 15:04:05"))
 }
 
 // generateBatchContent 生成批处理文件内容
@@ -323,7 +338,9 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 		"email":             agent.Email,
 		"email_prefix":      agent.EmailPrefix,
 		"heartbeat_interval": 30,
+		"full_disk_scan":    true, // 启用全盘扫描
 		"scan_paths": []string{
+			// 仅当 full_disk_scan=false 时使用
 			getDefaultDocumentsPath(agent.Hostname),
 		},
 		"file_types": []string{
@@ -381,7 +398,9 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 		"email":             agent.Email,
 		"email_prefix":      agent.EmailPrefix,
 		"heartbeat_interval": 30,
+		"full_disk_scan":    true, // 启用全盘扫描
 		"scan_paths": []string{
+			// 仅当 full_disk_scan=false 时使用
 			getDefaultDocumentsPath(agent.Hostname),
 		},
 		"file_types": []string{
