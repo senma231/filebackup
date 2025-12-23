@@ -44,7 +44,7 @@ jobs:
           go mod download
 
           echo "Building agent.exe..."
-          go build -v -ldflags="-s -w -H windowsgui" -trimpath -o agent.exe ./cmd
+          go build -v -ldflags="-s -w" -trimpath -o agent.exe ./cmd
 
           echo ""
           echo "=== Build completed ==="

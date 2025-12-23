@@ -290,26 +290,21 @@ func (h *DownloadHandlerEnhanced) generateReadmeContent(agentID string, config m
 // generateBatchContent 生成批处理文件内容
 func (h *DownloadHandlerEnhanced) generateBatchContent(agentID string) string {
 	return `@echo off
-chcp 65001 >nul
-echo 正在启动文件备份系统...
+echo Starting Document Scanner Agent...
 echo.
 
-REM 检查agent.exe是否存在
+REM Check if agent.exe exists
 if not exist "agent.exe" (
-    echo 错误：未找到 agent.exe 文件！
-    echo 请确保文件完整性后重试。
+    echo ERROR: agent.exe not found!
+    echo Please check file integrity and try again.
     pause
     exit /b 1
 )
 
-REM 启动备份客户端
-echo 启动备份客户端...
-start "" "agent.exe"
+REM Start the agent in console mode
+echo Starting agent...
+agent.exe console
 
-echo.
-echo 备份客户端已启动！
-echo 程序将在后台运行。
-echo.
 pause
 `
 }
