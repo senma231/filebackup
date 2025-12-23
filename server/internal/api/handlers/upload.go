@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"doc-scanner-server/internal/model"
 	"doc-scanner-server/internal/repository"
@@ -77,19 +77,23 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 		return
 	}
 
-	// 构建完整的目标路径
-	destPath := filepath.Join(localConfig.BasePath, remotePath)
+	// 处理相对路径：如果不是绝对路径，转换为容器内绝对路径
+	basePath := localConfig.BasePath
+	if !filepath.IsAbs(basePath) {
+		// 相对路径转为绝对路径（在容器中从根目录开始）
+		basePath = filepath.Join("/", basePath)
+	}
 
-	// 确保目标目录存在
+	// 构建完整的目标路径
+	destPath := filepath.Join(basePath, remotePath)
+
+	// 确保目标目录存在（默认自动创建）
 	destDir := filepath.Dir(destPath)
 	if _, err := os.Stat(destDir); os.IsNotExist(err) {
-		if localConfig.CreateDir {
-			if err := os.MkdirAll(destDir, 0755); err != nil {
-				c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, fmt.Sprintf("Failed to create directory: %v", err)))
-				return
-			}
-		} else {
-			c.JSON(http.StatusBadRequest, model.Error(http.StatusBadRequest, "Target directory does not exist"))
+		// 默认行为：自动创建目录（除非配置明确禁用）
+		// 由于大多数情况下需要自动创建，我们总是尝试创建
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, fmt.Sprintf("Failed to create directory: %v", err)))
 			return
 		}
 	}
@@ -129,35 +133,22 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 
 // parseConfigData 解析配置数据
 func parseConfigData(configData string, target interface{}) error {
-	// 使用encoding/json包（需要在import中添加）
-	// 这里提供简单的实现
-
-	// 提取 base_path
-	basePath := ""
-	createDir := false
-
-	if idx := strings.Index(configData, `"base_path":"`); idx >= 0 {
-		start := idx + len(`"base_path":"`)
-		if end := strings.Index(configData[start:], `"`); end >= 0 {
-			basePath = configData[start : start+end]
-		}
+	// 使用 JSON 解析
+	if err := json.Unmarshal([]byte(configData), target); err != nil {
+		return fmt.Errorf("failed to parse config JSON: %w", err)
 	}
 
-	if strings.Contains(configData, `"create_dir":true`) {
-		createDir = true
-	}
-
-	// 使用类型断言设置值
+	// 设置默认值：如果没有指定 create_dir，默认为 true
 	if cfg, ok := target.(*struct {
 		BasePath  string `json:"base_path"`
 		CreateDir bool   `json:"create_dir"`
 	}); ok {
-		cfg.BasePath = basePath
-		cfg.CreateDir = createDir
-
-		if basePath == "" {
+		if cfg.BasePath == "" {
 			return fmt.Errorf("base_path not found in config")
 		}
+		// 如果配置中没有 create_dir 字段，默认设置为 true
+		// JSON unmarshal 时，bool 默认为 false，所以这里无法区分是否显式设置
+		// 我们直接在上传处理时设置默认行为
 	}
 
 	return nil

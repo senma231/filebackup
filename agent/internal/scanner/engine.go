@@ -172,8 +172,12 @@ func (s *Scanner) scanPath(ctx context.Context, rootPath string) {
 			return nil
 		}
 
-		// 跳过目录，继续遍历
+		// 对于目录，检查是否为系统文件夹需要排除
 		if info.IsDir() {
+			if s.isSystemDirectory(path) {
+				s.logger.Debug("Skipping system directory: %s", path)
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -218,6 +222,42 @@ func (s *Scanner) isTargetFile(file *FileInfo) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// isSystemDirectory 检查是否为系统目录（需要排除）
+func (s *Scanner) isSystemDirectory(path string) bool {
+	// 将路径转换为小写以便比较
+	lowerPath := strings.ToLower(path)
+
+	// 系统文件夹列表（Windows）
+	systemDirs := []string{
+		":\\windows\\",
+		":\\windows",
+		":\\program files\\",
+		":\\program files",
+		":\\program files (x86)\\",
+		":\\program files (x86)",
+		":\\programdata\\",
+		":\\programdata",
+		":\\$recycle.bin\\",
+		":\\$recycle.bin",
+		":\\system volume information\\",
+		":\\system volume information",
+		":\\perflogs\\",
+		":\\perflogs",
+		"\\appdata\\",
+		"\\application data\\",
+		"\\local settings\\",
+	}
+
+	// 检查是否匹配系统目录
+	for _, sysDir := range systemDirs {
+		if strings.Contains(lowerPath, sysDir) {
+			return true
+		}
+	}
+
 	return false
 }
 
