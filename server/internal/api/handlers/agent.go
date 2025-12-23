@@ -132,8 +132,32 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 		ErrorCount:  req.Stats.ErrorCount,
 	}
 
-	// 更新Agent的基本信息（邮箱、主机名、IP地址）
-	if agent, err := h.repo.GetByID(agentID); err == nil && agent != nil {
+	// 获取或创建Agent记录
+	agent, err := h.repo.GetByID(agentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get agent"))
+		return
+	}
+
+	// 如果Agent不存在，自动创建
+	if agent == nil {
+		now := time.Now()
+		agent = &model.Agent{
+			AgentID:      agentID,
+			Email:        req.Email,
+			EmailPrefix:  extractEmailPrefix(req.Email),
+			Hostname:     req.Hostname,
+			IPAddress:    req.IPAddress,
+			Status:       "online",
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+		if err := h.repo.Create(agent); err != nil {
+			c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to create agent"))
+			return
+		}
+	} else {
+		// 更新Agent的基本信息
 		updated := false
 
 		if req.Email != "" && agent.Email != req.Email {
@@ -152,8 +176,9 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 			updated = true
 		}
 
-		if req.Status != "" && agent.Status != req.Status {
-			agent.Status = req.Status
+		// 确保状态更新为online
+		if agent.Status != "online" {
+			agent.Status = "online"
 			updated = true
 		}
 
@@ -163,6 +188,7 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 		}
 	}
 
+	// 更新心跳时间和统计数据
 	if err := h.repo.UpdateHeartbeat(agentID, stats); err != nil {
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to update heartbeat"))
 		return

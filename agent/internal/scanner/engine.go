@@ -227,33 +227,43 @@ func (s *Scanner) isTargetFile(file *FileInfo) bool {
 
 // isSystemDirectory 检查是否为系统目录（需要排除）
 func (s *Scanner) isSystemDirectory(path string) bool {
-	// 将路径转换为小写以便比较
-	lowerPath := strings.ToLower(path)
+	// 将路径转换为小写并标准化（统一使用反斜杠）
+	lowerPath := strings.ToLower(filepath.Clean(path))
 
-	// 系统文件夹列表（Windows）
-	systemDirs := []string{
-		":\\windows\\",
-		":\\windows",
-		":\\program files\\",
-		":\\program files",
-		":\\program files (x86)\\",
-		":\\program files (x86)",
-		":\\programdata\\",
-		":\\programdata",
-		":\\$recycle.bin\\",
-		":\\$recycle.bin",
-		":\\system volume information\\",
-		":\\system volume information",
-		":\\perflogs\\",
-		":\\perflogs",
-		"\\appdata\\",
-		"\\application data\\",
-		"\\local settings\\",
+	// 获取路径段进行精确匹配
+	parts := strings.Split(lowerPath, string(filepath.Separator))
+	if len(parts) < 2 {
+		return false
 	}
 
-	// 检查是否匹配系统目录
-	for _, sysDir := range systemDirs {
-		if strings.Contains(lowerPath, sysDir) {
+	// 检查根级系统目录（直接在驱动器根目录下）
+	// 例如: C:\Windows, C:\Program Files, C:\ProgramData
+	if len(parts) == 2 {
+		systemRootDirs := []string{
+			"windows",
+			"program files",
+			"program files (x86)",
+			"programdata",
+			"$recycle.bin",
+			"system volume information",
+			"perflogs",
+		}
+
+		for _, sysDir := range systemRootDirs {
+			if parts[1] == sysDir {
+				return true
+			}
+		}
+	}
+
+	// 检查 AppData 目录（在用户目录下）
+	// 例如: C:\Users\David\AppData
+	for i, part := range parts {
+		if part == "appdata" || part == "application data" || part == "local settings" {
+			return true
+		}
+		// 同时检查 LocalLow（IE的低权限缓存）
+		if i > 0 && parts[i-1] == "appdata" {
 			return true
 		}
 	}
