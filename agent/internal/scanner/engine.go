@@ -256,6 +256,12 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 		}
 	}
 
+	// 检查是否为用户目录（C:\Users\XXX）
+	// 如果是用户目录，只允许扫描指定的子目录
+	if s.isUserDirectoryPath(parts) {
+		return s.shouldSkipUserSubDir(parts)
+	}
+
 	// 检查 AppData 目录（在用户目录下）
 	// 例如: C:\Users\David\AppData
 	for i, part := range parts {
@@ -266,6 +272,70 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 		if i > 0 && parts[i-1] == "appdata" {
 			return true
 		}
+	}
+
+	return false
+}
+
+// isUserDirectoryPath 检查是否为用户目录路径（C:\Users\XXX）
+func (s *Scanner) isUserDirectoryPath(parts []string) bool {
+	// Windows 用户目录结构：C:\Users\用户名
+	// parts = ["c:", "users", "用户名", ...]
+	if len(parts) < 3 {
+		return false
+	}
+
+	// 检查是否为 C:\Users 或其他盘符的 Users 目录
+	if strings.ToLower(parts[1]) != "users" {
+		return false
+	}
+
+	// 排除公共目录（C:\Users\Public、C:\Users\Default 等）
+	publicDirs := []string{"public", "default", "all users"}
+	for _, publicDir := range publicDirs {
+		if len(parts) >= 3 && strings.ToLower(parts[2]) == publicDir {
+			return false
+		}
+	}
+
+	return true
+}
+
+// shouldSkipUserSubDir 检查用户目录下的子目录是否应该跳过
+// 只允许扫描：Documents、Desktop、Downloads
+func (s *Scanner) shouldSkipUserSubDir(parts []string) bool {
+	// 如果是用户目录根本身（C:\Users\XXX），不跳过，继续扫描子目录
+	if len(parts) == 3 {
+		return false
+	}
+
+	// 如果是用户目录下的子目录（C:\Users\XXX\YYY），检查是否为允许的目录
+	if len(parts) >= 4 {
+		subDirName := strings.ToLower(parts[3])
+
+		// 允许的目录（不区分大小写）
+		allowedDirs := map[string]bool{
+			"documents": true,
+			"desktop":   true,
+			"downloads": true,
+		}
+
+		// 如果是允许的目录，不跳过，继续扫描其子目录
+		if allowedDirs[subDirName] {
+			return false
+		}
+
+		// 如果是允许目录下的子目录（C:\Users\XXX\Documents\SubFolder），不跳过
+		if len(parts) > 4 {
+			// 检查父目录是否为允许的目录
+			parentDirName := strings.ToLower(parts[3])
+			if allowedDirs[parentDirName] {
+				return false
+			}
+		}
+
+		// 其他所有子目录都跳过
+		return true
 	}
 
 	return false
