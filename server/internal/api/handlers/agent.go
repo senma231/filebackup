@@ -235,7 +235,12 @@ func (h *AgentHandler) GetConfig(c *gin.Context) {
 			"C:\\Users\\%USERNAME%\\Documents",
 		},
 		"file_types": []string{
-			".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt",
+			".doc", ".docx",
+			".xls", ".xlsx",
+			".ppt", ".pptx",
+			".pdf",
+			// ".txt", // 已禁用：避免扫描大量日志文件
+			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*",
