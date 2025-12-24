@@ -70,6 +70,7 @@ jobs:
           cp agent/agent.exe agent-package/
           cp agent/*.bat agent-package/ || true
           cp agent/README.md agent-package/ || true
+          cp agent/configs/default.json agent-package/config.json || true
           ls -lh agent-package/
 
       - name: Upload agent package as artifact
