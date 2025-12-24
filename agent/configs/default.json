@@ -11,7 +11,9 @@
     ".ppt",
     ".pptx",
     ".pdf",
-    ".txt"
+    ".png",
+    ".jpg",
+    ".jpeg"
   ],
   "exclude_patterns": [
     "*.log",
