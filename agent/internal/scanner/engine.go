@@ -97,18 +97,44 @@ func (s *Scanner) resultWorker(ctx context.Context) {
 // FullScan 执行全量扫描
 func (s *Scanner) FullScan() error {
 	var scanPaths []string
+	// 用于记录已扫描的用户目录（避免重复扫描）
+	scannedUserDirs := make(map[string]bool)
 
 	// 根据配置决定扫描路径
 	if s.config.FullDiskScan {
-		s.logger.Info("Starting full disk scan (all available drives)")
+		s.logger.Info("Starting smart scan (Users whitelist, other drives full scan)")
 		// 获取所有可用驱动器
 		drives := s.getAllDrives()
 		if len(drives) == 0 {
 			s.logger.Warn("No available drives found")
 			return fmt.Errorf("no available drives found")
 		}
-		scanPaths = drives
 		s.logger.Info("Found %d available drive(s): %v", len(drives), drives)
+
+		// 首先检查C:\Users是否重定向到其他盘
+		usersDrive := s.getUsersDriveLetter()
+		s.logger.Info("Users directory is on drive: %s", usersDrive)
+
+		// 用户目录所在盘：使用白名单（只扫描用户目录）
+		userDirs := s.getAllowedUserDirectories(usersDrive)
+		if len(userDirs) > 0 {
+			scanPaths = append(scanPaths, userDirs...)
+			for _, dir := range userDirs {
+				scannedUserDirs[dir] = true
+			}
+			s.logger.Info("%s will scan %d allowed director(ies)", usersDrive, len(userDirs))
+		}
+
+		// 其他盘：全盘扫描，但排除已扫描的用户目录
+		for _, drive := range drives {
+			if strings.EqualFold(drive, usersDrive) {
+				// 已处理用户目录所在盘
+				continue
+			}
+			// 其他盘：全盘扫描
+			scanPaths = append(scanPaths, drive)
+			s.logger.Info("%s will be fully scanned", drive)
+		}
 	} else {
 		s.logger.Info("Starting scan of %d configured paths", len(s.config.ScanPaths))
 		scanPaths = s.config.ScanPaths
@@ -153,6 +179,126 @@ func (s *Scanner) getAllDrives() []string {
 	}
 
 	return drives
+}
+
+// getUsersDriveLetter 获取Users目录实际所在的盘符
+// 支持处理Users目录重定向到其他盘的情况
+func (s *Scanner) getUsersDriveLetter() string {
+	// 尝试常见的Users路径
+	candidatePaths := []struct {
+		path string
+		desc string
+	}{
+		{"C:\\Users", "C:\\Users (default)"},
+		{"D:\\Users", "D:\\Users"},
+		{"E:\\Users", "E:\\Users"},
+		{"F:\\Users", "F:\\Users"},
+	}
+
+	// 1. 首先检查C:\Users是否存在
+	cUsersPath := "C:\\Users"
+	info, err := os.Lstat(cUsersPath)
+	if err == nil {
+		// 如果存在，检查是否为符号链接或重定向
+		if info.Mode()&os.ModeSymlink != 0 {
+			// 是符号链接，获取实际路径
+			actualPath, err := os.Readlink(cUsersPath)
+			if err == nil {
+				s.logger.Info("C:\\Users is a symlink to: %s", actualPath)
+				if len(actualPath) >= 2 {
+					return string(actualPath[0]) + ":\\"
+				}
+			}
+		}
+
+		// 检查是否为目录重定向（通过检查是否真的有子目录）
+		entries, err := os.ReadDir(cUsersPath)
+		if err == nil && len(entries) > 0 {
+			// 有内容，说明是实际的Users目录
+			s.logger.Info("C:\\Users exists with %d entries", len(entries))
+			return "C:\\"
+		}
+
+		// C:\Users存在但为空，可能是重定向
+		s.logger.Info("C:\\Users exists but is empty, checking other drives...")
+	}
+
+	// 2. 检查其他盘的Users目录
+	for _, candidate := range candidatePaths {
+		if candidate.path == "C:\\Users" {
+			continue // 已检查
+		}
+
+		info, err := os.Stat(candidate.path)
+		if err == nil && info.IsDir() {
+			entries, readErr := os.ReadDir(candidate.path)
+			if readErr == nil && len(entries) > 0 {
+				// 找到实际的Users目录
+				s.logger.Info("Found Users directory at: %s (%s)", candidate.path, candidate.desc)
+				if len(candidate.path) >= 3 {
+					return candidate.path[:3] // 返回 "D:\", "E:\" 等
+				}
+			}
+		}
+	}
+
+	// 3. 都没找到，回退到C盘
+	s.logger.Warn("Could not locate Users directory, defaulting to C:\\")
+	return "C:\\"
+}
+
+// getAllowedUserDirectories 获取指定驱动器下所有用户目录的允许目录（白名单）
+// 只返回：Documents、Desktop、Downloads、Pictures
+func (s *Scanner) getAllowedUserDirectories(drivePath string) []string {
+	var allowedDirs []string
+
+	// 允许的目录名称
+	allowedDirNames := []string{"Documents", "Desktop", "Downloads", "Pictures"}
+
+	// 构建 Users 路径（如 C:\Users）
+	usersPath := filepath.Join(drivePath, "Users")
+
+	// 检查 Users 目录是否存在
+	if _, err := os.Stat(usersPath); os.IsNotExist(err) {
+		s.logger.Debug("Users directory does not exist: %s", usersPath)
+		return allowedDirs
+	}
+
+	// 读取 Users 目录下的所有用户目录
+	entries, err := os.ReadDir(usersPath)
+	if err != nil {
+		s.logger.Warn("Failed to read Users directory: %v", err)
+		return allowedDirs
+	}
+
+	// 遍历每个用户目录
+	for _, entry := range entries {
+		// 跳过非目录和公共目录
+		if !entry.IsDir() {
+			continue
+		}
+
+		userName := entry.Name()
+		// 排除公共目录
+		if strings.EqualFold(userName, "Public") || strings.EqualFold(userName, "Default") ||
+			strings.EqualFold(userName, "All Users") {
+			continue
+		}
+
+		userPath := filepath.Join(usersPath, userName)
+
+		// 为每个用户目录，收集允许的子目录
+		for _, dirName := range allowedDirNames {
+			targetDir := filepath.Join(userPath, dirName)
+			// 检查目录是否存在
+			if _, err := os.Stat(targetDir); err == nil {
+				allowedDirs = append(allowedDirs, targetDir)
+				s.logger.Debug("Found allowed directory: %s", targetDir)
+			}
+		}
+	}
+
+	return allowedDirs
 }
 
 // scanPath 扫描单个路径
@@ -226,6 +372,7 @@ func (s *Scanner) isTargetFile(file *FileInfo) bool {
 }
 
 // isSystemDirectory 检查是否为系统目录（需要排除）
+// 注意：C盘使用白名单方式，此函数主要用于其他驱动器
 func (s *Scanner) isSystemDirectory(path string) bool {
 	// 将路径转换为小写并标准化（统一使用反斜杠）
 	lowerPath := strings.ToLower(filepath.Clean(path))
@@ -237,7 +384,7 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 	}
 
 	// 检查根级系统目录（直接在驱动器根目录下）
-	// 例如: C:\Windows, C:\Program Files, C:\ProgramData
+	// 例如: D:\Windows, D:\Program Files
 	if len(parts) == 2 {
 		systemRootDirs := []string{
 			"windows",
@@ -247,6 +394,10 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 			"$recycle.bin",
 			"system volume information",
 			"perflogs",
+			"recovery",
+			"boot",
+			"system32",
+			"syswow64",
 		}
 
 		for _, sysDir := range systemRootDirs {
@@ -256,7 +407,7 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 		}
 	}
 
-	// 检查是否为用户目录（C:\Users\XXX）
+	// 检查是否为用户目录（D:\Users\XXX）
 	// 如果是用户目录，只允许扫描指定的子目录
 	if s.isUserDirectoryPath(parts) {
 		return s.shouldSkipUserSubDir(parts)
@@ -270,6 +421,13 @@ func (s *Scanner) isSystemDirectory(path string) bool {
 		}
 		// 同时检查 LocalLow（IE的低权限缓存）
 		if i > 0 && parts[i-1] == "appdata" {
+			return true
+		}
+	}
+
+	// 检查隐藏文件夹（以.开头）
+	for _, part := range parts {
+		if strings.HasPrefix(part, ".") {
 			return true
 		}
 	}
