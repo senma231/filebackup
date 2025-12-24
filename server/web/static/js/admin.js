@@ -138,39 +138,39 @@ async function loadAgents(page = 1) {
     }
 }
 
-// 加载文件列表
+// 加载文件统计（Agent级别）
 async function loadFiles(page = 1) {
     try {
         const response = await fetch(`${API_BASE}/files?page=${page}&per_page=${ITEMS_PER_PAGE}`);
         const data = await response.json();
-        
+
         const tbody = document.getElementById('filesTableBody');
         tbody.innerHTML = '';
-        
+
         if (data.code !== 200 || !data.data || !data.data.records) {
             tbody.innerHTML = '<tr><td colspan="8" class="loading">无数据</td></tr>';
             return;
         }
-        
-        data.data.records.forEach(file => {
-            const uploadTime = new Date(file.upload_time);
+
+        data.data.records.forEach(stat => {
+            const lastUploadTime = stat.last_upload_time ? new Date(stat.last_upload_time) : null;
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><code>${file.file_id}</code></td>
-                <td>${file.file_name || '-'}</td>
-                <td><code>${file.agent_id || '-'}</code></td>
-                <td>${file.email_prefix || '-'}</td>
-                <td>${formatFileSize(file.file_size || 0)}</td>
-                <td>${formatTime(uploadTime)}</td>
-                <td><span class="status-badge-table status-success">已上传</span></td>
-                <td>
-                    <button class="btn btn-small" onclick="viewFileDetails('${file.file_id}')">详情</button>
-                </td>
+                <td>${stat.email || '-'}</td>
+                <td>${stat.hostname || '-'}</td>
+                <td><span class="status-badge-table ${stat.status === 'online' ? 'status-online' : 'status-offline'}">
+                    ${stat.status === 'online' ? '在线' : '离线'}
+                </span></td>
+                <td>${stat.scanned_count || 0}</td>
+                <td style="color: #28a745;">${stat.uploaded_count || 0}</td>
+                <td style="color: #ffc107;">${stat.pending_count || 0}</td>
+                <td style="color: #dc3545;">${stat.failed_count || 0}</td>
+                <td>${lastUploadTime ? formatTime(lastUploadTime) : '从未上传'}</td>
             `;
             tbody.appendChild(row);
         });
     } catch (error) {
-        console.error('加载文件失败:', error);
+        console.error('加载文件统计失败:', error);
         const tbody = document.getElementById('filesTableBody');
         tbody.innerHTML = '<tr><td colspan="8" class="loading">加载失败</td></tr>';
     }

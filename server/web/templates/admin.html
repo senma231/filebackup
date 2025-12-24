@@ -98,21 +98,21 @@
                 <section id="files-section" class="section">
                     <h2>📁 文件管理</h2>
                     <div class="table-controls">
-                        <input type="text" id="fileFilter" placeholder="搜索文件名..." class="search-input">
+                        <input type="text" id="fileFilter" placeholder="搜索Agent..." class="search-input">
                         <button onclick="refreshFiles()" class="btn btn-primary">🔄 刷新</button>
                     </div>
                     <div class="table-container">
                         <table id="filesTable" class="data-table">
                             <thead>
                                 <tr>
-                                    <th>文件 ID</th>
-                                    <th>文件名</th>
-                                    <th>Agent ID</th>
-                                    <th>邮箱前缀</th>
-                                    <th>文件大小</th>
-                                    <th>上传时间</th>
+                                    <th>邮箱</th>
+                                    <th>主机名</th>
                                     <th>状态</th>
-                                    <th>操作</th>
+                                    <th>扫描文件数</th>
+                                    <th>已上传</th>
+                                    <th>待上传</th>
+                                    <th>失败</th>
+                                    <th>最后上传时间</th>
                                 </tr>
                             </thead>
                             <tbody id="filesTableBody">

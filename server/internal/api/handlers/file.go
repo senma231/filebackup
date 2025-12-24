@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -13,14 +14,31 @@ import (
 
 // FileHandler 文件处理器
 type FileHandler struct {
-	repo *repository.FileRepository
+	repo     *repository.FileRepository
+	agentRepo *repository.AgentRepository
 }
 
 // NewFileHandler 创建新的文件处理器
 func NewFileHandler(db *sql.DB) *FileHandler {
 	return &FileHandler{
-		repo: repository.NewFileRepository(db),
+		repo:     repository.NewFileRepository(db),
+		agentRepo: repository.NewAgentRepository(db),
 	}
+}
+
+// AgentFileStats Agent文件统计结构
+type AgentFileStats struct {
+	AgentID        string    `json:"agent_id"`
+	Email          string    `json:"email"`
+	EmailPrefix    string    `json:"email_prefix"`
+	Hostname       string    `json:"hostname"`
+	Status         string    `json:"status"`
+	ScannedCount   int64     `json:"scanned_count"`
+	UploadedCount  int64     `json:"uploaded_count"`
+	PendingCount   int64     `json:"pending_count"`
+	FailedCount    int64     `json:"failed_count"`
+	LastUploadTime *time.Time `json:"last_upload_time"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // UploadProgress 上传进度处理
@@ -93,25 +111,98 @@ func (h *FileHandler) UploadProgress(c *gin.Context) {
 	}))
 }
 
-// GetAll 获取所有文件记录
+// GetAll 获取所有Agent的文件统计（分页）
 func (h *FileHandler) GetAll(c *gin.Context) {
 	page := parseInt(c.DefaultQuery("page", "1"))
 	perPage := parseInt(c.DefaultQuery("per_page", c.DefaultQuery("size", "20")))
-	agentID := c.DefaultQuery("agent_id", "")
-	status := c.DefaultQuery("status", "all")
 
-	files, total, err := h.repo.GetAll(page, perPage, agentID, status)
+	log.Printf("[GET_FILE_STATS] Query: page=%d, perPage=%d", page, perPage)
+
+	// 获取所有Agent
+	agents, totalAgents, err := h.agentRepo.GetAll(1, 1000, "all")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get files"))
+		log.Printf("[GET_FILE_STATS] Error getting agents: %v", err)
+		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get agents"))
 		return
 	}
+
+	log.Printf("[GET_FILE_STATS] Found %d agents", len(agents))
+
+	// 为每个Agent获取文件统计
+	var stats []*AgentFileStats
+	for _, agent := range agents {
+		stat := &AgentFileStats{
+			AgentID:     agent.AgentID,
+			Email:       agent.Email,
+			EmailPrefix: agent.EmailPrefix,
+			Hostname:    agent.Hostname,
+			Status:      agent.Status,
+			CreatedAt:   agent.CreatedAt,
+		}
+
+		// 获取该Agent的文件统计
+		uploadedCount, err := h.repo.CountByAgentAndStatus(agent.AgentID, "success")
+		if err != nil {
+			log.Printf("[GET_FILE_STATS] Error getting uploaded count for %s: %v", agent.AgentID, err)
+		} else {
+			stat.UploadedCount = uploadedCount
+		}
+
+		pendingCount, err := h.repo.CountByAgentAndStatus(agent.AgentID, "pending")
+		if err != nil {
+			log.Printf("[GET_FILE_STATS] Error getting pending count for %s: %v", agent.AgentID, err)
+		} else {
+			stat.PendingCount = pendingCount
+		}
+
+		failedCount, err := h.repo.CountByAgentAndStatus(agent.AgentID, "failed")
+		if err != nil {
+			log.Printf("[GET_FILE_STATS] Error getting failed count for %s: %v", agent.AgentID, err)
+		} else {
+			stat.FailedCount = failedCount
+		}
+
+		// 扫描总数 = 上传成功 + 待上传 + 上传失败
+		stat.ScannedCount = stat.UploadedCount + stat.PendingCount + stat.FailedCount
+
+		// 获取最后上传时间
+		lastUpload, err := h.repo.GetLastUploadTime(agent.AgentID)
+		if err != nil {
+			log.Printf("[GET_FILE_STATS] Error getting last upload time for %s: %v", agent.AgentID, err)
+		} else {
+			stat.LastUploadTime = lastUpload
+		}
+
+		stats = append(stats, stat)
+	}
+
+	// 分页处理
+	total := int64(len(stats))
+	start := (page - 1) * perPage
+	end := start + perPage
+
+	if start > int(total) {
+		start = int(total)
+	}
+	if end > int(total) {
+		end = int(total)
+	}
+
+	var pagedStats []*AgentFileStats
+	if start < end {
+		pagedStats = stats[start:end]
+	} else {
+		pagedStats = []*AgentFileStats{}
+	}
+
+	log.Printf("[GET_FILE_STATS] Returning: total=%d, page=%d, returned=%d", total, page, len(pagedStats))
 
 	// 返回格式: { code: 200, message: "success", data: { total, page, per_page, records } }
 	paginatedData := gin.H{
 		"total":    total,
 		"page":     page,
 		"per_page": perPage,
-		"records":  files,
+		"records":  pagedStats,
 	}
 	c.JSON(http.StatusOK, model.Success(paginatedData))
 }

@@ -276,3 +276,36 @@ func (r *FileRepository) UpdateStatusByFileName(agentID, fileName, status, error
 
 	return nil
 }
+
+// CountByAgentAndStatus 统计指定Agent和状态的文件数量
+func (r *FileRepository) CountByAgentAndStatus(agentID, status string) (int64, error) {
+	var count int64
+	query := `
+		SELECT COUNT(*)
+		FROM file_uploads
+		WHERE agent_id = ? AND upload_status = ?
+	`
+	err := r.db.QueryRow(query, agentID, status).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count files by agent and status: %w", err)
+	}
+	return count, nil
+}
+
+// GetLastUploadTime 获取指定Agent的最后上传时间
+func (r *FileRepository) GetLastUploadTime(agentID string) (*time.Time, error) {
+	query := `
+		SELECT MAX(upload_end_time)
+		FROM file_uploads
+		WHERE agent_id = ? AND upload_status = 'success'
+	`
+	var uploadTime sql.NullTime
+	err := r.db.QueryRow(query, agentID).Scan(&uploadTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last upload time: %w", err)
+	}
+	if uploadTime.Valid {
+		return &uploadTime.Time, nil
+	}
+	return nil, nil
+}
