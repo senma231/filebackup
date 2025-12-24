@@ -239,7 +239,7 @@ func (h *AgentHandler) GetConfig(c *gin.Context) {
 // GetAll 获取所有Agent
 func (h *AgentHandler) GetAll(c *gin.Context) {
 	page := parseInt(c.DefaultQuery("page", "1"))
-	perPage := parseInt(c.DefaultQuery("size", "20"))
+	perPage := parseInt(c.DefaultQuery("per_page", c.DefaultQuery("size", "20")))
 	status := c.DefaultQuery("status", "all")
 
 	agents, total, err := h.repo.GetAll(page, perPage, status)
