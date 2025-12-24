@@ -1,8 +1,11 @@
 package uploader
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -264,9 +267,15 @@ func (tm *TransferManager) uploadFile(ctx context.Context, localPath string) {
 		task.Status = "failed"
 		task.Error = err
 		tm.logger.Error("上传失败: %s - %v", localPath, err)
+
+		// 通知Server上传失败
+		tm.reportUploadStatus(localPath, remotePath, "failed")
 	} else {
 		task.Status = "success"
 		tm.logger.Info("上传完成: %s", localPath)
+
+		// 通知Server上传成功
+		tm.reportUploadStatus(localPath, remotePath, "completed")
 	}
 
 	task.EndTime = time.Now()
@@ -275,6 +284,53 @@ func (tm *TransferManager) uploadFile(ctx context.Context, localPath string) {
 	tm.mu.Lock()
 	delete(tm.files, localPath)
 	tm.mu.Unlock()
+}
+
+// reportUploadStatus 向Server报告上传状态
+func (tm *TransferManager) reportUploadStatus(localPath, remotePath, status string) {
+	// 获取文件信息
+	fileInfo, err := os.Stat(localPath)
+	if err != nil {
+		tm.logger.Warn("无法获取文件信息: %s - %v", localPath, err)
+		return
+	}
+
+	// 构建请求体
+	reqData := map[string]interface{}{
+		"file_name":   filepath.Base(localPath),
+		"file_size":   fileInfo.Size(),
+		"file_type":   strings.TrimPrefix(filepath.Ext(localPath), "."),
+		"status":      status,
+		"local_path":  localPath,
+		"remote_path": remotePath,
+	}
+
+	jsonData, err := json.Marshal(reqData)
+	if err != nil {
+		tm.logger.Error("JSON编码失败: %v", err)
+		return
+	}
+
+	// 构建API URL
+	apiURL := fmt.Sprintf("%s/api/v1/agents/%s/upload/progress",
+		strings.TrimSuffix(tm.agentConfig.ServerURL, "/"),
+		tm.agentConfig.AgentID)
+
+	// 发送HTTP请求
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		tm.logger.Warn("通知Server上传状态失败: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		tm.logger.Warn("通知Server上传状态失败，状态码: %d", resp.StatusCode)
+		return
+	}
+
+	tm.logger.Debug("已通知Server上传状态: %s -> %s", localPath, status)
 }
 
 // RetryFailed 重试失败的上传

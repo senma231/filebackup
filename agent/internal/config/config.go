@@ -64,7 +64,7 @@ func DefaultConfig() *Config {
 			".xls", ".xlsx",
 			".ppt", ".pptx",
 			".pdf",
-			".txt",
+			// ".txt", // 已禁用：避免扫描大量日志文件
 			".png", ".jpg", ".jpeg",
 		},
 		ExcludePatterns: []string{
