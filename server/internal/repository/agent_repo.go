@@ -145,6 +145,13 @@ func (r *AgentRepository) GetAll(page, perPage int, status string) ([]*model.Age
 
 		if lastHeartbeat.Valid {
 			agent.LastHeartbeat = &lastHeartbeat.Time
+			// 动态判断Agent是否在线：超过5分钟未心跳视为离线
+			if time.Since(lastHeartbeat.Time) > 5*time.Minute {
+				agent.Status = "offline"
+			}
+		} else {
+			// 没有心跳记录，视为离线
+			agent.Status = "offline"
 		}
 
 		agents = append(agents, &agent)
