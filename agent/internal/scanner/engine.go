@@ -302,7 +302,7 @@ func (s *Scanner) isUserDirectoryPath(parts []string) bool {
 }
 
 // shouldSkipUserSubDir 检查用户目录下的子目录是否应该跳过
-// 只允许扫描：Documents、Desktop、Downloads
+// 只允许扫描：Documents、Desktop、Downloads、Pictures
 func (s *Scanner) shouldSkipUserSubDir(parts []string) bool {
 	// 如果是用户目录根本身（C:\Users\XXX），不跳过，继续扫描子目录
 	if len(parts) == 3 {
@@ -318,6 +318,7 @@ func (s *Scanner) shouldSkipUserSubDir(parts []string) bool {
 			"documents": true,
 			"desktop":   true,
 			"downloads": true,
+			"pictures":  true,
 		}
 
 		// 如果是允许的目录，不跳过，继续扫描其子目录

@@ -65,6 +65,7 @@ func DefaultConfig() *Config {
 			".ppt", ".pptx",
 			".pdf",
 			".txt",
+			".png", ".jpg", ".jpeg",
 		},
 		ExcludePatterns: []string{
 			"*.log",
