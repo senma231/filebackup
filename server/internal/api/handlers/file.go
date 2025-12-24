@@ -119,7 +119,7 @@ func (h *FileHandler) GetAll(c *gin.Context) {
 	log.Printf("[GET_FILE_STATS] Query: page=%d, perPage=%d", page, perPage)
 
 	// 获取所有Agent
-	agents, totalAgents, err := h.agentRepo.GetAll(1, 1000, "all")
+	agents, _, err := h.agentRepo.GetAll(1, 1000, "all")
 	if err != nil {
 		log.Printf("[GET_FILE_STATS] Error getting agents: %v", err)
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get agents"))
