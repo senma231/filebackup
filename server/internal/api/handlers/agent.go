@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -135,12 +136,16 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 	// 获取或创建Agent记录
 	agent, err := h.repo.GetByID(agentID)
 	if err != nil {
+		log.Printf("[HEARTBEAT] Error getting agent %s: %v", agentID, err)
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get agent"))
 		return
 	}
 
+	log.Printf("[HEARTBEAT] Agent %s lookup result: agent=%v, err=%v", agentID, agent != nil, err)
+
 	// 如果Agent不存在，自动创建
 	if agent == nil {
+		log.Printf("[HEARTBEAT] Creating new agent: ID=%s, Email=%s, Hostname=%s", agentID, req.Email, req.Hostname)
 		now := time.Now()
 		agent = &model.Agent{
 			AgentID:      agentID,
@@ -153,10 +158,13 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 			UpdatedAt:    now,
 		}
 		if err := h.repo.Create(agent); err != nil {
+			log.Printf("[HEARTBEAT] Failed to create agent: %v", err)
 			c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to create agent"))
 			return
 		}
+		log.Printf("[HEARTBEAT] Successfully created agent")
 	} else {
+		log.Printf("[HEARTBEAT] Found existing agent, updating info")
 		// 更新Agent的基本信息
 		updated := false
 
@@ -184,7 +192,11 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 
 		if updated {
 			agent.UpdatedAt = time.Now()
-			h.repo.Update(agent)
+			if err := h.repo.Update(agent); err != nil {
+				log.Printf("[HEARTBEAT] Failed to update agent: %v", err)
+			} else {
+				log.Printf("[HEARTBEAT] Successfully updated agent")
+			}
 		}
 	}
 
