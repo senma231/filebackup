@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 	"time"
 
 	"doc-scanner-server/internal/model"
@@ -140,18 +139,4 @@ func (h *FileHandler) GetByAgentID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.Success(files))
-}
-
-// parseInt 解析字符串为整数
-func parseInt(s string) int {
-	var result int
-	// 简单的字符串转整数，出错时返回0
-	if s == "" {
-		return 0
-	}
-	// 使用 strconv
-	if val, err := strconv.Atoi(s); err == nil {
-		return val
-	}
-	return 0
 }
