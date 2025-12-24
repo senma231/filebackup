@@ -254,10 +254,19 @@ func (h *AgentHandler) GetAll(c *gin.Context) {
 	perPage := parseInt(c.DefaultQuery("per_page", c.DefaultQuery("size", "20")))
 	status := c.DefaultQuery("status", "all")
 
+	log.Printf("[GET_ALL_AGENTS] Query: page=%d, perPage=%d, status=%s", page, perPage, status)
+
 	agents, total, err := h.repo.GetAll(page, perPage, status)
 	if err != nil {
+		log.Printf("[GET_ALL_AGENTS] Error: %v", err)
 		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to get agents"))
 		return
+	}
+
+	log.Printf("[GET_ALL_AGENTS] Success: total=%d, returned=%d", total, len(agents))
+	for i, agent := range agents {
+		log.Printf("[GET_ALL_AGENTS]   Agent[%d]: ID=%s, Email=%s, Hostname=%s, Status=%s",
+			i, agent.AgentID, agent.Email, agent.Hostname, agent.Status)
 	}
 
 	c.JSON(http.StatusOK, model.NewPaginatedResponse(total, page, perPage, agents))
