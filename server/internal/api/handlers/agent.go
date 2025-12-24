@@ -269,7 +269,14 @@ func (h *AgentHandler) GetAll(c *gin.Context) {
 			i, agent.AgentID, agent.Email, agent.Hostname, agent.Status)
 	}
 
-	c.JSON(http.StatusOK, model.NewPaginatedResponse(total, page, perPage, agents))
+	// 返回格式: { code: 200, message: "success", data: { total, page, per_page, records } }
+	paginatedData := gin.H{
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
+		"records":  agents,
+	}
+	c.JSON(http.StatusOK, model.Success(paginatedData))
 }
 
 // GetByID 根据ID获取Agent

@@ -118,7 +118,7 @@ type PaginatedResponse struct {
 	Total   int64       `json:"total"`
 	Page    int         `json:"page"`
 	PerPage int         `json:"per_page"`
-	Data    interface{} `json:"data"`
+	Records interface{} `json:"records"`
 }
 
 // NewPaginatedResponse 创建分页响应
@@ -127,6 +127,6 @@ func NewPaginatedResponse(total int64, page, perPage int, data interface{}) *Pag
 		Total:   total,
 		Page:    page,
 		PerPage: perPage,
-		Data:    data,
+		Records: data,
 	}
 }

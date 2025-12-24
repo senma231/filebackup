@@ -96,7 +96,7 @@ func (h *FileHandler) UploadProgress(c *gin.Context) {
 // GetAll 获取所有文件记录
 func (h *FileHandler) GetAll(c *gin.Context) {
 	page := parseInt(c.DefaultQuery("page", "1"))
-	perPage := parseInt(c.DefaultQuery("size", "20"))
+	perPage := parseInt(c.DefaultQuery("per_page", c.DefaultQuery("size", "20")))
 	agentID := c.DefaultQuery("agent_id", "")
 	status := c.DefaultQuery("status", "all")
 
@@ -106,7 +106,14 @@ func (h *FileHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, model.NewPaginatedResponse(total, page, perPage, files))
+	// 返回格式: { code: 200, message: "success", data: { total, page, per_page, records } }
+	paginatedData := gin.H{
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
+		"records":  files,
+	}
+	c.JSON(http.StatusOK, model.Success(paginatedData))
 }
 
 // GetByID 根据ID获取文件记录
