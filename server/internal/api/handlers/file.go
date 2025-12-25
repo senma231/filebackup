@@ -64,6 +64,7 @@ func (h *FileHandler) UploadProgress(c *gin.Context) {
 	switch req.Status {
 	case "started":
 		// 文件上传开始
+		now := time.Now()
 		file := &model.FileUpload{
 			AgentID:         agentID,
 			LocalPath:       req.LocalPath,
@@ -72,9 +73,9 @@ func (h *FileHandler) UploadProgress(c *gin.Context) {
 			FileSize:        req.FileSize,
 			FileType:        req.FileType,
 			UploadStatus:    model.FileStatusUploading,
-			UploadStartTime: &time.Time{},
+			UploadStartTime: &now,
 			RetryCount:      0,
-			CreatedAt:       time.Now(),
+			CreatedAt:       now,
 		}
 
 		// 创建上传记录

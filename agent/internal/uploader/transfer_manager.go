@@ -87,6 +87,7 @@ func (tm *TransferManager) AddFiles(files []*scanner.FileInfo) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
+	addedCount := 0
 	for _, file := range files {
 		// 生成远程路径
 		remotePath := tm.generateRemotePath(file)
@@ -97,10 +98,13 @@ func (tm *TransferManager) AddFiles(files []*scanner.FileInfo) {
 		}
 
 		tm.files[file.Path] = remotePath
+		addedCount++
 		tm.logger.Debug("已添加待上传文件: %s -> %s", file.Path, remotePath)
 	}
 
-	tm.logger.Info("已添加 %d 个文件到上传队列", len(files))
+	if addedCount > 0 {
+		tm.logger.Info("已添加 %d 个新文件到上传队列（共扫描 %d 个文件）", addedCount, len(files))
+	}
 }
 
 // GetUploadStatus 获取上传状态
