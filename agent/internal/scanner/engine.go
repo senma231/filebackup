@@ -335,6 +335,11 @@ func (s *Scanner) scanPath(ctx context.Context, rootPath string) {
 			return nil
 		}
 
+		// 图片文件只扫描Users白名单目录（Documents、Desktop、Downloads、Pictures）
+		if s.shouldSkipImageFile(file) {
+			return nil
+		}
+
 		// 检查是否应该排除
 		if file.ShouldExclude(s.config.ExcludePatterns) {
 			return nil
@@ -368,6 +373,83 @@ func (s *Scanner) isTargetFile(file *FileInfo) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// shouldSkipImageFile 检查图片文件是否应该跳过
+// 图片文件（.jpg, .png, .jpeg）只扫描Users白名单目录
+// 其他目录下的图片文件跳过，避免扫描软件图标等非必要文件
+func (s *Scanner) shouldSkipImageFile(file *FileInfo) bool {
+	// 检查是否为图片文件
+	ext := strings.ToLower(file.Extension)
+	imageExtensions := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+	}
+
+	if !imageExtensions[ext] {
+		// 不是图片文件，不需要跳过
+		return false
+	}
+
+	// 是图片文件，检查是否在Users白名单目录下
+	path := filepath.Clean(file.Path)
+	lowerPath := strings.ToLower(path)
+	parts := strings.Split(lowerPath, string(filepath.Separator))
+
+	// 检查是否在Users目录的白名单子目录中
+	// 路径格式: C:\Users\Username\Documents\...\image.jpg
+	// 我们需要检查 parts[3] 是否为允许的目录名
+	if len(parts) >= 4 && (parts[2] == "users" || s.isUserDriveRoot(parts)) {
+		allowedDirs := map[string]bool{
+			"documents": true,
+			"desktop":   true,
+			"downloads": true,
+			"pictures":  true,
+		}
+
+		// 检查父目录是否为允许的目录
+		if len(parts) >= 4 {
+			parentDir := parts[3]
+			if allowedDirs[parentDir] {
+				// 在允许的目录中，不跳过
+				return false
+			}
+		}
+	}
+
+	// 图片文件不在Users白名单目录中，跳过
+	s.logger.Debug("跳过非Users白名单目录的图片文件: %s", file.Path)
+	return true
+}
+
+// isUserDriveRoot 检查路径是否为Users驱动器根目录下的路径
+// 用于处理Users目录被重定向到其他盘的情况（如 D:\Users\Username）
+func (s *Scanner) isUserDriveRoot(parts []string) bool {
+	if len(parts) < 3 {
+		return false
+	}
+
+	// 检查第二部分是否为 Users（处理 D:\Users\Username 的情况）
+	if parts[1] == "users" {
+		return true
+	}
+
+	// 检查是否为Users重定向驱动器
+	// 例如：如果C:\Users是符号链接指向D:\Users
+	usersDriveLetter := s.getUsersDriveLetter()
+	if usersDriveLetter != "" && len(parts) >= 2 {
+		// 提取驱动器号（例如 "D:\" -> "d:"）
+		drivePart := strings.ToLower(parts[0]) + ":"
+		if drivePart == strings.ToLower(usersDriveLetter) {
+			// 这个驱动器上的Users目录结构
+			if len(parts) >= 3 && parts[1] == "users" {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 
