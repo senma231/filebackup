@@ -287,9 +287,10 @@ func (tm *TransferManager) uploadFile(ctx context.Context, localPath string) {
 
 	task.EndTime = time.Now()
 
-	// 从待上传列表中移除
+	// 从待上传列表和进行中列表中移除
 	tm.mu.Lock()
 	delete(tm.files, localPath)
+	delete(tm.inFlight, localPath)
 	tm.mu.Unlock()
 }
 

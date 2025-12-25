@@ -293,19 +293,36 @@ func (r *FileRepository) CountByAgentAndStatus(agentID, status string) (int64, e
 }
 
 // GetLastUploadTime 获取指定Agent的最后上传时间
+// 优先返回上传完成时间，如果没有则返回上传开始时间
 func (r *FileRepository) GetLastUploadTime(agentID string) (*time.Time, error) {
+	// 先尝试获取上传成功的时间
 	query := `
 		SELECT MAX(upload_end_time)
 		FROM file_uploads
-		WHERE agent_id = ? AND upload_status = 'success'
+		WHERE agent_id = ? AND upload_status = 'success' AND upload_end_time IS NOT NULL
 	`
 	var uploadTime sql.NullTime
 	err := r.db.QueryRow(query, agentID).Scan(&uploadTime)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last upload time: %w", err)
+		return nil, fmt.Errorf("failed to get last upload end time: %w", err)
 	}
 	if uploadTime.Valid {
 		return &uploadTime.Time, nil
 	}
+
+	// 如果没有成功的上传，返回最近的上传开始时间
+	query = `
+		SELECT MAX(upload_start_time)
+		FROM file_uploads
+		WHERE agent_id = ? AND upload_start_time IS NOT NULL
+	`
+	err = r.db.QueryRow(query, agentID).Scan(&uploadTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last upload start time: %w", err)
+	}
+	if uploadTime.Valid {
+		return &uploadTime.Time, nil
+	}
+
 	return nil, nil
 }
