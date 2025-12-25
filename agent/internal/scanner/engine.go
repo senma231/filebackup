@@ -204,7 +204,7 @@ func (s *Scanner) getUsersDriveLetter() string {
 			// 是符号链接，获取实际路径
 			actualPath, err := os.Readlink(cUsersPath)
 			if err == nil {
-				s.logger.Info("C:\\Users is a symlink to: %s", actualPath)
+				s.logger.Debug("C:\\Users is a symlink to: %s", actualPath)
 				if len(actualPath) >= 2 {
 					return string(actualPath[0]) + ":\\"
 				}
@@ -215,12 +215,12 @@ func (s *Scanner) getUsersDriveLetter() string {
 		entries, err := os.ReadDir(cUsersPath)
 		if err == nil && len(entries) > 0 {
 			// 有内容，说明是实际的Users目录
-			s.logger.Info("C:\\Users exists with %d entries", len(entries))
+			s.logger.Debug("C:\\Users exists with %d entries", len(entries))
 			return "C:\\"
 		}
 
 		// C:\Users存在但为空，可能是重定向
-		s.logger.Info("C:\\Users exists but is empty, checking other drives...")
+		s.logger.Debug("C:\\Users exists but is empty, checking other drives...")
 	}
 
 	// 2. 检查其他盘的Users目录

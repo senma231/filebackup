@@ -74,10 +74,17 @@ func (f *FileInfo) ShouldExclude(patterns []string) bool {
 
 // matchesPattern 简单的模式匹配
 func matchesPattern(filename, pattern string) bool {
-	// 简单实现：检查是否以*开头的后缀匹配
+	// 处理前缀模式（如 "._*" - 匹配以._开头的文件）
+	if len(pattern) >= 2 && pattern[0] == '.' && pattern[1] == '_' {
+		return len(filename) >= 2 && filename[0] == '.' && filename[1] == '_'
+	}
+
+	// 处理后缀模式（如 "*.log" - 匹配以.log结尾的文件）
 	if len(pattern) > 0 && pattern[0] == '*' {
 		suffix := pattern[1:]
 		return len(filename) >= len(suffix) && filename[len(filename)-len(suffix):] == suffix
 	}
+
+	// 精确匹配
 	return filename == pattern
 }
