@@ -108,7 +108,12 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 			"C:\\Users\\%USERNAME%\\Documents",
 		},
 		"file_types": []string{
-			".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt",
+			".doc", ".docx",
+			".xls", ".xlsx",
+			".ppt", ".pptx",
+			".pdf",
+			// ".txt", // 已禁用：避免扫描大量日志文件
+			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*",
@@ -339,7 +344,12 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 			getDefaultDocumentsPath(agent.Hostname),
 		},
 		"file_types": []string{
-			".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt",
+			".doc", ".docx",
+			".xls", ".xlsx",
+			".ppt", ".pptx",
+			".pdf",
+			// ".txt", // 已禁用：避免扫描大量日志文件
+			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*",
@@ -399,7 +409,12 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 			getDefaultDocumentsPath(agent.Hostname),
 		},
 		"file_types": []string{
-			".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf", ".txt",
+			".doc", ".docx",
+			".xls", ".xlsx",
+			".ppt", ".pptx",
+			".pdf",
+			// ".txt", // 已禁用：避免扫描大量日志文件
+			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*",
