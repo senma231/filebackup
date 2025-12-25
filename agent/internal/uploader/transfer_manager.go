@@ -260,6 +260,9 @@ func (tm *TransferManager) uploadFile(ctx context.Context, localPath string) {
 	tm.inFlight[localPath] = task
 	tm.mu.Unlock()
 
+	// 先通知Server开始上传（创建数据库记录）
+	tm.reportUploadStatus(localPath, remotePath, "started")
+
 	tm.logger.Info("开始上传: %s -> %s", localPath, remotePath)
 
 	// 执行上传（带上下文支持）
