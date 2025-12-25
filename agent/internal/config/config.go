@@ -71,6 +71,10 @@ func DefaultConfig() *Config {
 			"*.log",
 			"*.tmp",
 			"~$*",
+			"._*",         // macOS 资源分支文件
+			".DS_Store",   // macOS 文件夹元数据
+			"Thumbs.db",   // Windows 缩略图缓存
+			"desktop.ini", // Windows 桌面配置
 		},
 		MaxFileSize:   100 * 1024 * 1024, // 100MB
 		IncrementalScan: true,

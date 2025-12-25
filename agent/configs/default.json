@@ -18,7 +18,11 @@
   "exclude_patterns": [
     "*.log",
     "*.tmp",
-    "~$*"
+    "~$*",
+    "._*",
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini"
   ],
   "max_file_size": 104857600,
   "incremental_scan": true,

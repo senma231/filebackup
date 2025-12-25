@@ -116,7 +116,7 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
-			"*.log", "*.tmp", "~$*",
+			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
 		"max_file_size": 104857600,
 		"incremental_scan": true,
@@ -352,7 +352,7 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
-			"*.log", "*.tmp", "~$*",
+			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
 		"max_file_size": 104857600,
 		"incremental_scan": true,
@@ -417,7 +417,7 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 			".png", ".jpg", ".jpeg",
 		},
 		"exclude_patterns": []string{
-			"*.log", "*.tmp", "~$*",
+			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
 		"max_file_size": 104857600,
 		"incremental_scan": true,
