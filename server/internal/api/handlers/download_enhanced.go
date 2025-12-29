@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"doc-scanner-server/internal/model"
@@ -196,7 +197,9 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 	if err != nil {
 		return nil, err
 	}
-	_, err = readmeFile.Write([]byte(readmeContent))
+	// 将LF转换为CRLF（Windows文本文件兼容性）
+	crlfContent := strings.ReplaceAll(readmeContent, "\n", "\r\n")
+	_, err = readmeFile.Write([]byte(crlfContent))
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +210,9 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 	if err != nil {
 		return nil, err
 	}
-	_, err = batchFile.Write([]byte(batchContent))
+	// 将LF转换为CRLF（Windows批处理文件要求）
+	crlfContent := strings.ReplaceAll(batchContent, "\n", "\r\n")
+	_, err = batchFile.Write([]byte(crlfContent))
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +233,9 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 			log.Printf("Warning: failed to add %s to zip: %v", scriptName, err)
 			continue
 		}
-		_, err = file.Write([]byte(scriptContent))
+		// 将LF转换为CRLF（Windows批处理文件要求）
+		crlfContent := strings.ReplaceAll(scriptContent, "\n", "\r\n")
+		_, err = file.Write([]byte(crlfContent))
 		if err != nil {
 			log.Printf("Warning: failed to write %s to zip: %v", scriptName, err)
 			continue
