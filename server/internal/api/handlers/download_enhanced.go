@@ -212,6 +212,29 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 		return nil, err
 	}
 
+	// 5. 添加服务管理脚本（Windows）
+	serviceScripts := map[string]string{
+		"install-service.bat":  h.generateInstallServiceContent(),
+		"start-service.bat":    h.generateStartServiceContent(),
+		"stop-service.bat":     h.generateStopServiceContent(),
+		"restart-service.bat":  h.generateRestartServiceContent(),
+		"uninstall-service.bat": h.generateUninstallServiceContent(),
+		"run-console.bat":      h.generateRunConsoleContent(),
+	}
+
+	for scriptName, scriptContent := range serviceScripts {
+		file, err := zipWriter.Create(scriptName)
+		if err != nil {
+			log.Printf("Warning: failed to add %s to zip: %v", scriptName, err)
+			continue
+		}
+		_, err = file.Write([]byte(scriptContent))
+		if err != nil {
+			log.Printf("Warning: failed to write %s to zip: %v", scriptName, err)
+			continue
+		}
+	}
+
 	// 关闭ZIP写入器
 	err = zipWriter.Close()
 	if err != nil {
@@ -428,4 +451,256 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.Success(config))
+}
+
+// generateInstallServiceContent 生成安装服务脚本内容
+func (h *DownloadHandlerEnhanced) generateInstallServiceContent() string {
+	return `@echo off
+chcp 65001 >nul
+setlocal
+
+echo ========================================
+echo   文档扫描Agent - 服务安装脚本
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [错误] 此脚本需要管理员权限！
+    echo.
+    echo 请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [提示] 正在安装Windows服务...
+echo.
+
+:: 安装服务
+agent.exe install
+
+if %errorlevel% equ 0 (
+    echo.
+    echo ========================================
+    echo   安装成功！
+    echo ========================================
+    echo.
+    echo 后续操作：
+    echo   1. 启动服务：双击 start-service.bat
+    echo   2. 停止服务：双击 stop-service.bat
+    echo   3. 卸载服务：双击 uninstall-service.bat
+    echo.
+    echo 或者使用Windows服务管理器（services.msc）管理
+    echo.
+) else (
+    echo.
+    echo [错误] 安装失败，请检查错误信息
+    echo.
+)
+
+pause
+`
+}
+
+// generateStartServiceContent 生成启动服务脚本内容
+func (h *DownloadHandlerEnhanced) generateStartServiceContent() string {
+	return `@echo off
+chcp 65001 >nul
+
+echo ========================================
+echo 启动文档扫描Agent服务
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [错误] 此脚本需要管理员权限！
+    echo 请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+:: 启动服务
+sc start "DocScannerAgent" >nul 2>&1
+
+if %errorlevel% equ 0 (
+    echo [成功] 服务启动成功！
+    echo.
+    echo 查看服务状态：运行 services.msc
+) else (
+    echo [错误] 服务启动失败
+    echo 请检查服务是否已安装
+)
+
+echo.
+pause
+`
+}
+
+// generateStopServiceContent 生成停止服务脚本内容
+func (h *DownloadHandlerEnhanced) generateStopServiceContent() string {
+	return `@echo off
+chcp 65001 >nul
+
+echo ========================================
+echo 停止文档扫描Agent服务
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [错误] 此脚本需要管理员权限！
+    echo 请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+:: 停止服务
+sc stop "DocScannerAgent" >nul 2>&1
+
+if %errorlevel% equ 0 (
+    echo [成功] 服务停止成功！
+) else (
+    echo [错误] 服务停止失败
+    echo 请检查服务是否正在运行
+)
+
+echo.
+pause
+`
+}
+
+// generateRestartServiceContent 生成重启服务脚本内容
+func (h *DownloadHandlerEnhanced) generateRestartServiceContent() string {
+	return `@echo off
+chcp 65001 >nul
+
+echo ========================================
+echo 重启文档扫描Agent服务
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [错误] 此脚本需要管理员权限！
+    echo 请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+:: 停止服务
+echo 正在停止服务...
+sc stop "DocScannerAgent" >nul 2>&1
+
+:: 等待2秒
+timeout /t 2 /nobreak >nul
+
+:: 启动服务
+echo 正在启动服务...
+sc start "DocScannerAgent" >nul 2>&1
+
+if %errorlevel% equ 0 (
+    echo [成功] 服务重启成功！
+) else (
+    echo [错误] 服务重启失败
+)
+
+echo.
+pause
+`
+}
+
+// generateUninstallServiceContent 生成卸载服务脚本内容
+func (h *DownloadHandlerEnhanced) generateUninstallServiceContent() string {
+	return `@echo off
+chcp 65001 >nul
+setlocal
+
+echo ========================================
+echo   文档扫描Agent - 服务卸载脚本
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [错误] 此脚本需要管理员权限！
+    echo.
+    echo 请右键点击此文件，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [警告] 即将卸载文档扫描Agent服务
+echo.
+set /p confirm="确认卸载？(Y/N): "
+if /i not "%confirm%"=="Y" (
+    echo 取消卸载
+    pause
+    exit /b 0
+)
+
+echo.
+echo [提示] 正在卸载Windows服务...
+echo.
+
+:: 卸载服务
+agent.exe uninstall
+
+if %errorlevel% equ 0 (
+    echo.
+    echo ========================================
+    echo   卸载成功！
+    echo ========================================
+    echo.
+) else (
+    echo.
+    echo [错误] 卸载失败，请检查错误信息
+    echo.
+)
+
+pause
+`
+}
+
+// generateRunConsoleContent 生成控制台运行脚本内容
+func (h *DownloadHandlerEnhanced) generateRunConsoleContent() string {
+	return `@echo off
+chcp 65001 >nul
+
+echo ========================================
+echo 在控制台运行文档扫描Agent
+echo ========================================
+echo.
+echo 此脚本将在前台控制台运行Agent
+echo 关闭此窗口将停止Agent
+echo.
+
+:: 检查agent.exe是否存在
+if not exist "agent.exe" (
+    echo [错误] agent.exe 不存在！
+    echo 请检查文件完整性
+    echo.
+    pause
+    exit /b 1
+)
+
+:: 在控制台模式运行Agent
+echo [启动] 正在启动Agent...
+echo.
+agent.exe console
+
+echo.
+echo [已停止] Agent已停止运行
+pause
+`
 }
