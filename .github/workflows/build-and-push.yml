@@ -64,6 +64,20 @@ jobs:
       - name: Show agent file
         run: ls -l agent/agent.exe || true
 
+      - name: List agent directory contents
+        run: |
+          echo "=== Listing agent directory ==="
+          ls -la agent/
+          echo ""
+          echo "=== Checking for .bat files ==="
+          ls -la agent/*.bat 2>&1 || echo "No .bat files found"
+          echo ""
+          echo "=== Checking for configs directory ==="
+          ls -la agent/configs/ 2>&1 || echo "No configs directory"
+          echo ""
+          echo "=== Checking for README.md ==="
+          ls -la agent/README.md 2>&1 || echo "No README.md"
+
       - name: Prepare agent package
         run: |
           mkdir -p agent-package
