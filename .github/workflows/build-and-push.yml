@@ -82,17 +82,42 @@ jobs:
         run: |
           mkdir -p agent-package
           cp agent/agent.exe agent-package/
-          cp agent/install-service.bat agent-package/ || true
-          cp agent/start-service.bat agent-package/ || true
-          cp agent/stop-service.bat agent-package/ || true
-          cp agent/restart-service.bat agent-package/ || true
-          cp agent/uninstall-service.bat agent-package/ || true
-          cp agent/run-console.bat agent-package/ || true
-          cp agent/README.md agent-package/ || true
-          cp agent/configs/default.json agent-package/config.json || true
+          cp agent/install-service.bat agent-package/ || echo "WARNING: install-service.bat not found"
+          cp agent/start-service.bat agent-package/ || echo "WARNING: start-service.bat not found"
+          cp agent/stop-service.bat agent-package/ || echo "WARNING: stop-service.bat not found"
+          cp agent/restart-service.bat agent-package/ || echo "WARNING: restart-service.bat not found"
+          cp agent/uninstall-service.bat agent-package/ || echo "WARNING: uninstall-service.bat not found"
+          cp agent/run-console.bat agent-package/ || echo "WARNING: run-console.bat not found"
+          cp agent/README.md agent-package/ || echo "WARNING: README.md not found"
+          cp agent/configs/default.json agent-package/config.json || echo "WARNING: config.json not found"
+          echo "=== Package file list ==="
           ls -lh agent-package/
-          echo "=== Package contents ==="
+          echo ""
+          echo "=== Detailed listing ==="
           ls -la agent-package/
+          echo ""
+          echo "=== Count .bat files ==="
+          ls agent-package/*.bat 2>/dev/null | wc -l
+
+      - name: Verify package contents
+        run: |
+          echo "=== Final verification ==="
+          echo "Agent executable:"
+          test -f agent-package/agent.exe && echo "  ✓ agent.exe found" || echo "  ✗ agent.exe NOT found"
+          echo ""
+          echo "Batch files:"
+          for bat in install-service start-service stop-service restart-service uninstall-service run-console; do
+            file="agent-package/${bat}.bat"
+            if [ -f "$file" ]; then
+              echo "  ✓ ${bat}.bat found"
+            else
+              echo "  ✗ ${bat}.bat NOT found"
+            fi
+          done
+          echo ""
+          echo "Other files:"
+          test -f agent-package/config.json && echo "  ✓ config.json found" || echo "  ✗ config.json NOT found"
+          test -f agent-package/README.md && echo "  ✓ README.md found" || echo "  ✗ README.md NOT found"
 
       - name: Upload agent package as artifact
         uses: actions/upload-artifact@v4
