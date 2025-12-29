@@ -130,7 +130,17 @@ jobs:
         run: |
           mkdir -p server/agent_bin
           cp agent/agent.exe server/agent_bin/agent.exe
+          echo "=== Verifying agent.exe was copied ==="
           ls -l server/agent_bin/
+          file server/agent_bin/agent.exe || echo "file command not available"
+
+      - name: Verify Docker build context
+        run: |
+          echo "=== Checking server/agent_bin before Docker build ==="
+          ls -la server/agent_bin/
+          echo ""
+          echo "=== Checking if file exists ==="
+          test -f server/agent_bin/agent.exe && echo "✓ agent.exe exists" || echo "✗ agent.exe NOT FOUND!"
 
       - name: Set lowercase repository owner
         id: repo_owner

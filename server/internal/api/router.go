@@ -63,13 +63,29 @@ func (s *Server) Start(addr string) error {
 			"./bin/agent.exe",
 			"../agent/agent.exe",
 			"../../agent/agent.exe",
+			"agent_bin/agent.exe",
+			"../agent_bin/agent.exe",
 		}
+		found := false
 		for _, altPath := range alternativePaths {
 			if _, err := os.Stat(altPath); err == nil {
 				agentBinPath = altPath
+				found = true
+				log.Printf("Found agent.exe at: %s", agentBinPath)
 				break
 			}
 		}
+		if !found {
+			log.Printf("============================================")
+			log.Printf("WARNING: agent.exe not found in any location!")
+			log.Printf("Downloaded packages will NOT include agent.exe")
+			log.Printf("")
+			log.Printf("To fix this, run: build-local.bat")
+			log.Printf("Or manually: cd agent && go build -o ../server/agent_bin/agent.exe ./cmd")
+			log.Printf("============================================")
+		}
+	} else {
+		log.Printf("Found agent.exe at: %s", agentBinPath)
 	}
 
 	downloadHandlerEnhanced := handlers.NewDownloadHandlerEnhanced(s.db, agentBinPath)
