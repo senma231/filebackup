@@ -68,10 +68,17 @@ jobs:
         run: |
           mkdir -p agent-package
           cp agent/agent.exe agent-package/
-          cp agent/*.bat agent-package/ || true
+          cp agent/install-service.bat agent-package/ || true
+          cp agent/start-service.bat agent-package/ || true
+          cp agent/stop-service.bat agent-package/ || true
+          cp agent/restart-service.bat agent-package/ || true
+          cp agent/uninstall-service.bat agent-package/ || true
+          cp agent/run-console.bat agent-package/ || true
           cp agent/README.md agent-package/ || true
           cp agent/configs/default.json agent-package/config.json || true
           ls -lh agent-package/
+          echo "=== Package contents ==="
+          ls -la agent-package/
 
       - name: Upload agent package as artifact
         uses: actions/upload-artifact@v4
