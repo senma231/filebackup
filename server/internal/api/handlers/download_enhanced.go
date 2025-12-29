@@ -198,8 +198,8 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 		return nil, err
 	}
 	// 将LF转换为CRLF（Windows文本文件兼容性）
-	crlfContent := strings.ReplaceAll(readmeContent, "\n", "\r\n")
-	_, err = readmeFile.Write([]byte(crlfContent))
+	crlfReadme := strings.ReplaceAll(readmeContent, "\n", "\r\n")
+	_, err = readmeFile.Write([]byte(crlfReadme))
 	if err != nil {
 		return nil, err
 	}
@@ -211,8 +211,8 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 		return nil, err
 	}
 	// 将LF转换为CRLF（Windows批处理文件要求）
-	crlfContent := strings.ReplaceAll(batchContent, "\n", "\r\n")
-	_, err = batchFile.Write([]byte(crlfContent))
+	crlfBatch := strings.ReplaceAll(batchContent, "\n", "\r\n")
+	_, err = batchFile.Write([]byte(crlfBatch))
 	if err != nil {
 		return nil, err
 	}
