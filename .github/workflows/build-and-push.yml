@@ -144,16 +144,39 @@ jobs:
           mkdir -p installer
           cp agent.exe installer/agent.exe
 
+          echo "=== Verification before build ==="
+          echo "agent.exe size:"
+          ls -lh agent.exe
+          echo "installer/agent.exe size:"
+          ls -lh installer/agent.exe
+          echo "installer/installer.go exists:"
+          ls -lh installer/installer.go
+
           # 编译installer.exe
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -v -ldflags="-s -w" -trimpath -o ../build/installer.exe ./installer
+
+          echo "=== After build ==="
+          echo "build/installer.exe size:"
+          ls -lh ../build/installer.exe
+          file ../build/installer.exe || echo "file command not available"
 
           # 复制到server目录
           mkdir -p ../server/agent_bin
           cp ../build/installer.exe ../server/agent_bin/DocScannerAgent-Setup.exe
 
-          echo "=== Verifying installer.exe ==="
+          echo "=== Verifying installer.exe in server/agent_bin ==="
           ls -lh ../server/agent_bin/DocScannerAgent-Setup.exe
           file ../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
+
+          # 检查文件大小是否合理（应该大于10MB）
+          size=$(stat -c%s ../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../server/agent_bin/DocScannerAgent-Setup.exe)
+          if [ "$size" -lt 10000000 ]; then
+            echo "⚠ WARNING: installer.exe size is only $size bytes (< 10MB)"
+            echo "Expected size: 15-20MB (should include embedded agent.exe)"
+            echo "This indicates the embed may not have worked correctly!"
+          else
+            echo "✓ installer.exe size is $size bytes (looks good!)"
+          fi
 
       - name: Verify Docker build context
         run: |
@@ -188,6 +211,28 @@ jobs:
       - name: Cleanup agent binary
         run: rm -f agent/agent.exe || true
 
+      - name: Verify installer before build
+        run: |
+          echo "=== Final verification before Docker build ==="
+          echo "agent_bin directory contents:"
+          ls -lh server/agent_bin/
+          echo ""
+          echo "Checking DocScannerAgent-Setup.exe:"
+          if [ -f "server/agent_bin/DocScannerAgent-Setup.exe" ]; then
+            echo "✓ DocScannerAgent-Setup.exe exists"
+            ls -lh server/agent_bin/DocScannerAgent-Setup.exe
+            size=$(stat -c%s server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z server/agent_bin/DocScannerAgent-Setup.exe)
+            if [ "$size" -lt 10000000 ]; then
+              echo "⚠ WARNING: installer.exe seems too small (< 10MB)"
+              echo "Expected size: 15-20MB (includes embedded agent.exe)"
+              exit 1
+            fi
+          else
+            echo "✗ DocScannerAgent-Setup.exe NOT FOUND!"
+            echo "This will cause download issues!"
+            exit 1
+          fi
+
       - name: Build summary
         run: |
           echo "## 🎉 构建成功！" >> $GITHUB_STEP_SUMMARY
@@ -199,11 +244,18 @@ jobs:
           echo "### Windows Agent" >> $GITHUB_STEP_SUMMARY
           echo "已上传为 Artifact: **agent-windows-amd64**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**文件信息：**" >> $GITHUB_STEP_SUMMARY
+          echo "**Agent.exe 文件信息：**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           ls -lh server/agent_bin/agent.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "文件大小信息不可用" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           sha256sum server/agent_bin/agent.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "SHA256校验不可用" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Installer.exe 文件信息：**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh server/agent_bin/DocScannerAgent-Setup.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "installer.exe 信息不可用" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sha256sum server/agent_bin/DocScannerAgent-Setup.exe >> $GITHUB_STEP_SUMMARY 2>&1 || echo "SHA256校验不可用" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 部署命令" >> $GITHUB_STEP_SUMMARY
