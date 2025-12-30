@@ -41,8 +41,9 @@ RUN mkdir -p /app/data /app/bin
 COPY --from=builder /app/server /app/
 COPY --from=builder /app/web /app/web/
 
-# 从构建上下文复制预编译的agent.exe
+# 从构建上下文复制预编译的agent文件
 COPY agent_bin/agent.exe /app/bin/agent.exe
+COPY agent_bin/DocScannerAgent-Setup.exe /app/bin/DocScannerAgent-Setup.exe
 
 # 暴露端口
 EXPOSE 8889
