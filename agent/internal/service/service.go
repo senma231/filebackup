@@ -207,6 +207,17 @@ func (s *AgentService) createFallbackStorageConfig() *model.StorageConfig {
 	}
 }
 
+// simpleService 简单服务实现（仅用于安装/卸载，不实际运行）
+type simpleService struct{}
+
+func (s *simpleService) Start(svc service.Service) error {
+	return nil
+}
+
+func (s *simpleService) Stop(svc service.Service) error {
+	return nil
+}
+
 // InstallService 安装Windows服务
 func InstallService() error {
 	// 获取可执行文件路径
@@ -224,13 +235,10 @@ func InstallService() error {
 		Executable:  exePath,
 	}
 
-	// 创建服务实例
-	agentSvc, err := NewAgentService()
-	if err != nil {
-		return fmt.Errorf("创建服务实例失败: %w", err)
-	}
+	// 创建简单的服务实例用于安装（不需要加载配置）
+	simpleSvc := &simpleService{}
 
-	svc, err := service.New(agentSvc, svcConfig)
+	svc, err := service.New(simpleSvc, svcConfig)
 	if err != nil {
 		return fmt.Errorf("创建服务失败: %w", err)
 	}
