@@ -152,28 +152,45 @@ jobs:
           echo "installer/installer.go exists:"
           ls -lh installer/installer.go
 
-          # 编译installer.exe
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -v -ldflags="-s -w" -trimpath -o ../build/installer.exe ./installer
+          # 列出installer目录内容
+          echo "installer directory contents:"
+          ls -la installer/
+
+          # 进入installer目录编译（确保embed能正确找到相对路径的文件）
+          cd installer
+          export GOOS=windows
+          export GOARCH=amd64
+          export CGO_ENABLED=0
+          go build -v -ldflags="-s -w" -trimpath -o ../../build/installer.exe .
 
           echo "=== After build ==="
           echo "build/installer.exe size:"
-          ls -lh ../build/installer.exe
-          file ../build/installer.exe || echo "file command not available"
+          ls -lh ../../build/installer.exe
+          file ../../build/installer.exe || echo "file command not available"
 
           # 复制到server目录
-          mkdir -p ../server/agent_bin
-          cp ../build/installer.exe ../server/agent_bin/DocScannerAgent-Setup.exe
+          mkdir -p ../../server/agent_bin
+          cp ../../build/installer.exe ../../server/agent_bin/DocScannerAgent-Setup.exe
 
           echo "=== Verifying installer.exe in server/agent_bin ==="
-          ls -lh ../server/agent_bin/DocScannerAgent-Setup.exe
-          file ../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
+          ls -lh ../../server/agent_bin/DocScannerAgent-Setup.exe
+          file ../../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
           # 检查文件大小是否合理（应该大于10MB）
-          size=$(stat -c%s ../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../server/agent_bin/DocScannerAgent-Setup.exe)
+          size=$(stat -c%s ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../../server/agent_bin/DocScannerAgent-Setup.exe)
           if [ "$size" -lt 10000000 ]; then
             echo "⚠ WARNING: installer.exe size is only $size bytes (< 10MB)"
             echo "Expected size: 15-20MB (should include embedded agent.exe)"
             echo "This indicates the embed may not have worked correctly!"
+            # 尝试使用strings命令检查是否包含PE文件头
+            if command -v strings > /dev/null; then
+              echo "Checking if installer contains embedded data..."
+              if strings ../../build/installer.exe | grep -q "This program cannot be run in DOS mode"; then
+                echo "✓ Found PE executable signature in installer"
+              else
+                echo "✗ No PE signature found - embed likely failed!"
+              fi
+            fi
           else
             echo "✓ installer.exe size is $size bytes (looks good!)"
           fi
