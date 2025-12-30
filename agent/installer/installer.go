@@ -15,6 +15,18 @@ import (
 //go:embed agent.exe
 var embeddedAgentEXE embed.FS
 
+func init() {
+	// 调试：检查嵌入的文件是否存在及其大小
+	if file, err := embeddedAgentEXE.Open("agent.exe"); err == nil {
+		if info, err := file.Stat(); err == nil {
+			fmt.Printf("[DEBUG] Embedded agent.exe size: %d bytes\n", info.Size())
+		}
+		file.Close()
+	} else {
+		fmt.Printf("[DEBUG] Failed to open embedded agent.exe: %v\n", err)
+	}
+}
+
 func main() {
 	fmt.Println("========================================")
 	fmt.Println("  文档扫描Agent - 安装程序")
