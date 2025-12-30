@@ -466,10 +466,22 @@ func (h *DownloadHandlerEnhanced) generateInstallServiceContent() string {
 chcp 65001 >nul
 setlocal
 
+:: 切换到脚本所在目录
+cd /d "%~dp0"
+
 echo ========================================
 echo   文档扫描Agent - 服务安装脚本
 echo ========================================
 echo.
+
+:: 检查agent.exe是否存在
+if not exist "agent.exe" (
+    echo [错误] agent.exe 不存在！
+    echo 请确保此脚本与 agent.exe 在同一目录
+    echo.
+    pause
+    exit /b 1
+)
 
 :: 检查管理员权限
 net session >nul 2>&1
@@ -516,6 +528,9 @@ func (h *DownloadHandlerEnhanced) generateStartServiceContent() string {
 	return `@echo off
 chcp 65001 >nul
 
+:: 切换到脚本所在目录
+cd /d "%~dp0"
+
 echo ========================================
 echo 启动文档扫描Agent服务
 echo ========================================
@@ -553,6 +568,9 @@ func (h *DownloadHandlerEnhanced) generateStopServiceContent() string {
 	return `@echo off
 chcp 65001 >nul
 
+:: 切换到脚本所在目录
+cd /d "%~dp0"
+
 echo ========================================
 echo 停止文档扫描Agent服务
 echo ========================================
@@ -587,6 +605,9 @@ pause
 func (h *DownloadHandlerEnhanced) generateRestartServiceContent() string {
 	return `@echo off
 chcp 65001 >nul
+
+:: 切换到脚本所在目录
+cd /d "%~dp0"
 
 echo ========================================
 echo 重启文档扫描Agent服务
@@ -631,10 +652,22 @@ func (h *DownloadHandlerEnhanced) generateUninstallServiceContent() string {
 chcp 65001 >nul
 setlocal
 
+:: 切换到脚本所在目录
+cd /d "%~dp0"
+
 echo ========================================
 echo   文档扫描Agent - 服务卸载脚本
 echo ========================================
 echo.
+
+:: 检查agent.exe是否存在
+if not exist "agent.exe" (
+    echo [错误] agent.exe 不存在！
+    echo 请确保此脚本与 agent.exe 在同一目录
+    echo.
+    pause
+    exit /b 1
+)
 
 :: 检查管理员权限
 net session >nul 2>&1
@@ -683,6 +716,9 @@ pause
 func (h *DownloadHandlerEnhanced) generateRunConsoleContent() string {
 	return `@echo off
 chcp 65001 >nul
+
+:: 切换到脚本所在目录
+cd /d "%~dp0"
 
 echo ========================================
 echo 在控制台运行文档扫描Agent
