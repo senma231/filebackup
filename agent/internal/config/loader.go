@@ -9,19 +9,34 @@ import (
 
 // Load 加载配置文件
 func Load() (*Config, error) {
-	// 优先尝试当前目录的 config.json
-	currentDirConfig := "config.json"
-	systemConfigPath := GetConfigPath()
+	// 优先尝试以下路径（按优先级）：
+	// 1. exe 所在目录的 config.json（适用于 Windows 服务）
+	// 2. 当前目录的 config.json（适用于控制台模式）
+	// 3. 系统默认路径
 
-	var configPath string
-	if _, err := os.Stat(currentDirConfig); err == nil {
-		// 当前目录有 config.json，优先使用
-		configPath = currentDirConfig
-	} else {
-		// 使用系统默认路径
-		configPath = systemConfigPath
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		exeDirConfig := filepath.Join(exeDir, "config.json")
+		if _, err := os.Stat(exeDirConfig); err == nil {
+			// exe 所在目录有 config.json
+			return loadConfigFile(exeDirConfig)
+		}
 	}
 
+	// 尝试当前目录
+	currentDirConfig := "config.json"
+	if _, err := os.Stat(currentDirConfig); err == nil {
+		return loadConfigFile(currentDirConfig)
+	}
+
+	// 使用系统默认路径
+	systemConfigPath := GetConfigPath()
+	return loadConfigFile(systemConfigPath)
+}
+
+// loadConfigFile 从指定路径加载配置文件
+func loadConfigFile(configPath string) (*Config, error) {
 	// 检查配置文件是否存在
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		// 配置文件不存在，创建默认配置
@@ -62,8 +77,26 @@ func Load() (*Config, error) {
 
 // Save 保存配置到文件
 func Save(cfg *Config) error {
-	// 确保配置目录存在
-	configPath := GetConfigPath()
+	// 优先保存到 exe 所在目录，其次是当前目录，最后是系统路径
+	var configPath string
+
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		configPath = filepath.Join(exeDir, "config.json")
+		// 尝试在 exe 目录创建
+		if err := os.MkdirAll(exeDir, 0755); err == nil {
+			data, marshalErr := json.MarshalIndent(cfg, "", "  ")
+			if marshalErr == nil {
+				if writeErr := os.WriteFile(configPath, data, 0600); writeErr == nil {
+					return nil
+				}
+			}
+		}
+	}
+
+	// 回退到系统路径
+	configPath = GetConfigPath()
 	configDir := filepath.Dir(configPath)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
