@@ -30,14 +30,14 @@ type AgentService struct {
 
 // NewAgentService 创建Agent服务
 func NewAgentService() (*AgentService, error) {
-	// 初始化日志
-	log := logger.New()
-
 	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("加载配置失败: %w", err)
 	}
+
+	// 初始化日志（使用配置中的日志目录）
+	log := logger.NewWithConfig(cfg.GetLogPath(), cfg.LogLevel)
 
 	return &AgentService{
 		cfg: cfg,

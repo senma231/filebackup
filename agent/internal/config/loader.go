@@ -62,6 +62,15 @@ func loadConfigFile(configPath string) (*Config, error) {
 	// 如果AgentID为空，生成一个
 	if cfg.AgentID == "" {
 		cfg.AgentID = generateAgentID()
+
+		// 同时配置日志目录为exe所在目录/logs
+		exePath, err := os.Executable()
+		if err == nil {
+			exeDir := filepath.Dir(exePath)
+			logDir := filepath.Join(exeDir, "logs")
+			cfg.LogPath = logDir
+		}
+
 		if err := Save(&cfg); err != nil {
 			return nil, fmt.Errorf("failed to save config with generated ID: %w", err)
 		}

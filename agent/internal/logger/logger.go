@@ -9,16 +9,18 @@ import (
 
 // Logger 日志结构
 type Logger struct {
-	level  string
-	logDir string
+	level       string
+	logDir      string
+	lastCleanup time.Time // 上次清理时间
 }
 
 // New 创建新的日志实例
 func New() *Logger {
 	// 默认日志配置
 	return &Logger{
-		level:  "info",
-		logDir: "",
+		level:       "info",
+		logDir:      "",
+		lastCleanup: time.Time{},
 	}
 }
 
@@ -29,9 +31,71 @@ func NewWithConfig(logPath, logLevel string) *Logger {
 		fmt.Printf("Warning: Failed to create log directory: %v\n", err)
 	}
 
-	return &Logger{
-		level:  logLevel,
-		logDir: logPath,
+	logger := &Logger{
+		level:       logLevel,
+		logDir:      logPath,
+		lastCleanup: time.Time{},
+	}
+
+	// 初始化时清理一次旧日志
+	logger.cleanupOldLogs()
+
+	return logger
+}
+
+// cleanupOldLogs 清理超过7天的旧日志文件
+func (l *Logger) cleanupOldLogs() {
+	if l.logDir == "" {
+		return
+	}
+
+	// 检查是否需要清理（距离上次清理超过24小时才执行）
+	if !l.lastCleanup.IsZero() && time.Since(l.lastCleanup) < 24*time.Hour {
+		return
+	}
+
+	// 更新清理时间
+	l.lastCleanup = time.Now()
+
+	// 读取日志目录
+	entries, err := os.ReadDir(l.logDir)
+	if err != nil {
+		return
+	}
+
+	// 7天前的时间
+	cutoffTime := time.Now().AddDate(0, 0, -7)
+
+	// 删除超过7天的日志文件
+	deletedCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		// 检查是否为日志文件
+		matched, _ := filepath.Match("agent-*.log", entry.Name())
+		if !matched {
+			continue
+		}
+
+		// 获取文件信息
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		// 检查文件修改时间
+		if info.ModTime().Before(cutoffTime) {
+			logFile := filepath.Join(l.logDir, entry.Name())
+			if err := os.Remove(logFile); err == nil {
+				deletedCount++
+			}
+		}
+	}
+
+	if deletedCount > 0 {
+		fmt.Printf("[INFO] 已清理 %d 个过期日志文件（超过7天）\n", deletedCount)
 	}
 }
 
@@ -83,6 +147,9 @@ func (l *Logger) log(level, format string, args ...interface{}) {
 
 // writeToFile 写入日志文件
 func (l *Logger) writeToFile(logLine string) error {
+	// 每天触发一次清理检查
+	l.cleanupOldLogs()
+
 	// 获取当前日期作为日志文件名
 	date := time.Now().Format("2006-01-02")
 	logFile := filepath.Join(l.logDir, fmt.Sprintf("agent-%s.log", date))

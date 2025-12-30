@@ -82,6 +82,7 @@ jobs:
         run: |
           mkdir -p agent-package
           cp agent/agent.exe agent-package/
+          cp agent/build/setup-agent-template.bat agent-package/setup-agent.bat || echo "WARNING: setup-agent.bat not found"
           cp agent/install-service.bat agent-package/ || echo "WARNING: install-service.bat not found"
           cp agent/start-service.bat agent-package/ || echo "WARNING: start-service.bat not found"
           cp agent/stop-service.bat agent-package/ || echo "WARNING: stop-service.bat not found"
@@ -133,6 +134,26 @@ jobs:
           echo "=== Verifying agent.exe was copied ==="
           ls -l server/agent_bin/
           file server/agent_bin/agent.exe || echo "file command not available"
+
+      - name: Build installer
+        run: |
+          echo "=== Building installer.exe ==="
+          cd agent
+
+          # 将agent.exe复制到installer目录用于嵌入
+          mkdir -p installer
+          cp agent.exe installer/agent.exe
+
+          # 编译installer.exe
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -v -ldflags="-s -w" -trimpath -o ../build/installer.exe ./installer
+
+          # 复制到server目录
+          mkdir -p ../server/agent_bin
+          cp ../build/installer.exe ../server/agent_bin/DocScannerAgent-Setup.exe
+
+          echo "=== Verifying installer.exe ==="
+          ls -lh ../server/agent_bin/DocScannerAgent-Setup.exe
+          file ../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
       - name: Verify Docker build context
         run: |

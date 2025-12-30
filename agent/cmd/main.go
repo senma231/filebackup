@@ -4,10 +4,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +72,13 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "status":
+		// 显示服务状态
+		if err := showStatus(); err != nil {
+			fmt.Printf("❌ 获取状态失败: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "run":
 		// 运行服务（由Windows服务管理器调用）
 		if err := service.RunService(); err != nil {
@@ -105,6 +118,7 @@ func printUsage() {
 	fmt.Println("  start      启动服务")
 	fmt.Println("  stop       停止服务")
 	fmt.Println("  restart    重启服务")
+	fmt.Println("  status     查看服务状态和运行信息")
 	fmt.Println("")
 	fmt.Println("开发/调试命令:")
 	fmt.Println("  console    控制台模式运行（不推荐生产环境使用）")
@@ -119,9 +133,8 @@ func printUsage() {
 	fmt.Println("  2. 启动服务:")
 	fmt.Println("     agent.exe start")
 	fmt.Println("")
-	fmt.Println("  3. 查看服务状态:")
-	fmt.Println("     打开Windows服务管理器（services.msc）")
-	fmt.Println("     查找「文档扫描Agent」服务")
+	fmt.Println("  3. 查看状态:")
+	fmt.Println("     agent.exe status")
 	fmt.Println("")
 	fmt.Println("注意:")
 	fmt.Println("  - install/uninstall 需要管理员权限")
@@ -182,6 +195,10 @@ func runConsoleMode() error {
 		return err
 	}
 	log.Info("配置加载成功")
+
+	// 重新创建logger（使用配置中的日志目录）
+	log = logger.NewWithConfig(cfg.GetLogPath(), cfg.LogLevel)
+	log.Info("日志目录: %s", cfg.GetLogPath())
 
 	// 创建存储配置客户端
 	storageClient := api.NewStorageClient(cfg.ServerURL)
@@ -370,4 +387,191 @@ func toString(n int) string {
 	}
 	// 使用fmt.Sprintf更可靠
 	return fmt.Sprintf("%d", n)
+}
+
+// showStatus 显示服务状态和运行信息
+func showStatus() error {
+	fmt.Println("========================================")
+	fmt.Println("   文档扫描Agent - 运行状态")
+	fmt.Println("========================================")
+	fmt.Println()
+
+	// 1. 检查Windows服务状态
+	fmt.Println("【服务状态】")
+	cmd := exec.Command("sc", "query", "DocScannerAgent")
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("  ⚠ 无法查询服务状态: %v\n", err)
+		fmt.Println("  提示: 服务可能未安装")
+	} else {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "STATE") {
+				parts := strings.Fields(line)
+				if len(parts) >= 3 {
+					state := parts[2]
+					switch state {
+					case "RUNNING":
+						fmt.Printf("  ✓ 运行中\n")
+					case "STOPPED":
+						fmt.Printf("  ✗ 已停止\n")
+					default:
+						fmt.Printf("  ⚠ 状态: %s\n", state)
+					}
+				}
+				break
+			}
+		}
+	}
+
+	fmt.Println()
+
+	// 2. 读取配置信息
+	fmt.Println("【配置信息】")
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("  ⚠ 无法加载配置: %v\n", err)
+	} else {
+		fmt.Printf("  Agent ID: %s\n", cfg.AgentID)
+		fmt.Printf("  Server URL: %s\n", cfg.ServerURL)
+		fmt.Printf("  日志目录: %s\n", cfg.GetLogPath())
+		fmt.Printf("  心跳间隔: %d 秒\n", cfg.HeartbeatInterval)
+		fmt.Printf("  扫描模式: %s\n", map[bool]string{true: "全盘扫描", false: "指定路径"}[cfg.FullDiskScan])
+	}
+
+	fmt.Println()
+
+	// 3. 显示日志信息
+	fmt.Println("【日志信息】")
+	logDir := ""
+	if cfg != nil {
+		logDir = cfg.GetLogPath()
+	}
+
+	if logDir == "" {
+		fmt.Println("  ⚠ 日志目录未配置")
+	} else {
+		// 检查日志目录是否存在
+		if _, err := os.Stat(logDir); os.IsNotExist(err) {
+			fmt.Printf("  ⚠ 日志目录不存在: %s\n", logDir)
+		} else {
+			// 列出最近的日志文件
+			files, err := os.ReadDir(logDir)
+			if err != nil {
+				fmt.Printf("  ⚠ 无法读取日志目录: %v\n", err)
+			} else {
+				// 筛选日志文件并按修改时间排序
+				type logFileInfo struct {
+					name    string
+					modTime time.Time
+					size    int64
+				}
+				var logFiles []logFileInfo
+
+				for _, file := range files {
+					if !file.IsDir() && strings.HasPrefix(file.Name(), "agent-") && strings.HasSuffix(file.Name(), ".log") {
+						info, _ := file.Info()
+						logFiles = append(logFiles, logFileInfo{
+							name:    file.Name(),
+							modTime: info.ModTime(),
+							size:    info.Size(),
+						})
+					}
+				}
+
+				// 按修改时间降序排序
+				sort.Slice(logFiles, func(i, j int) bool {
+					return logFiles[i].modTime.After(logFiles[j].modTime)
+				})
+
+				if len(logFiles) == 0 {
+					fmt.Println("  ℹ 暂无日志文件")
+				} else {
+					fmt.Printf("  共有 %d 个日志文件\n", len(logFiles))
+					fmt.Println()
+
+					// 显示最近3个日志文件
+					count := 3
+					if len(logFiles) < count {
+						count = len(logFiles)
+					}
+
+					for i := 0; i < count; i++ {
+						file := logFiles[i]
+						fmt.Printf("  • %s\n", file.name)
+						fmt.Printf("    大小: %s, 修改时间: %s\n",
+							formatFileSize(file.size),
+							file.modTime.Format("2006-01-02 15:04:05"))
+
+						// 读取最后几行日志
+						logPath := filepath.Join(logDir, file.name)
+						if lastLines, err := readLastNLines(logPath, 3); err == nil {
+							fmt.Println("    最新日志:")
+							for _, line := range lastLines {
+								fmt.Printf("      %s\n", strings.TrimSpace(line))
+							}
+						}
+						fmt.Println()
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Println("========================================")
+	fmt.Println("提示:")
+	fmt.Println("  - 使用 'agent.exe start' 启动服务")
+	fmt.Println("  - 使用 'agent.exe stop' 停止服务")
+	fmt.Println("  - 使用 'agent.exe restart' 重启服务")
+	fmt.Println("  - 日志文件位置: " + logDir)
+	fmt.Println("========================================")
+
+	return nil
+}
+
+// readLastNLines 读取文件的最后N行
+func readLastNLines(filePath string, n int) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// 读取所有行
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// 返回最后n行
+	if len(lines) <= n {
+		return lines, nil
+	}
+
+	return lines[len(lines)-n:], nil
+}
+
+// formatFileSize 格式化文件大小
+func formatFileSize(size int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+
+	switch {
+	case size >= GB:
+		return fmt.Sprintf("%.2f GB", float64(size)/float64(GB))
+	case size >= MB:
+		return fmt.Sprintf("%.2f MB", float64(size)/float64(MB))
+	case size >= KB:
+		return fmt.Sprintf("%.2f KB", float64(size)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", size)
+	}
 }

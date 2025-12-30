@@ -135,23 +135,54 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 	}
 
 	// 返回下载信息
-	c.JSON(http.StatusOK, model.Success(gin.H{
-		"agent_id":          agentID,
-		"email":             req.Email,
-		"email_prefix":      emailPrefix,
-		"download_url":      fmt.Sprintf("%s/api/v1/download/enhanced/package/%s", getServerURL(c), agentID),
-		"config_preview":    config,
-		"package_size":      len(downloadPackage),
-		"instructions": gin.H{
+	isInstaller := len(downloadPackage) > 12*1024*1024
+	packageType := "EXE安装程序"
+	if !isInstaller {
+		packageType = "ZIP压缩包"
+	}
+
+	instructions := gin.H{
+		"step1": "双击运行安装程序",
+		"step2": "安装程序会自动安装并启动服务",
+		"step3": "Agent将自动连接到服务器并开始扫描",
+	}
+	if !isInstaller {
+		instructions = gin.H{
 			"step1": "下载并解压ZIP文件",
 			"step2": "双击运行agent.exe",
 			"step3": "Agent将自动连接到服务器并开始扫描",
-		},
+		}
+	}
+
+	c.JSON(http.StatusOK, model.Success(gin.H{
+		"agent_id":       agentID,
+		"email":          req.Email,
+		"email_prefix":   emailPrefix,
+		"download_url":   fmt.Sprintf("%s/api/v1/download/enhanced/package/%s", getServerURL(c), agentID),
+		"config_preview": config,
+		"package_size":   len(downloadPackage),
+		"package_type":   packageType,
+		"instructions":   instructions,
 	}))
 }
 
 // generateDownloadPackage 生成下载包
 func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config map[string]interface{}) ([]byte, error) {
+	// 优先返回installer.exe（自解压安装程序）
+	installerPath := "/app/bin/DocScannerAgent-Setup.exe"
+	if _, err := os.Stat(installerPath); err == nil {
+		// 返回installer.exe
+		installerData, err := os.ReadFile(installerPath)
+		if err != nil {
+			log.Printf("Warning: failed to read installer.exe: %v", err)
+		} else {
+			log.Printf("Returning installer.exe, size: %d bytes", len(installerData))
+			return installerData, nil
+		}
+	}
+
+	// 回退到生成ZIP包
+	log.Printf("Installer not found, generating ZIP package")
 	var buf bytes.Buffer
 	zipWriter := zip.NewWriter(&buf)
 
@@ -219,6 +250,7 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 
 	// 5. 添加服务管理脚本（Windows）
 	serviceScripts := map[string]string{
+		"setup-agent.bat":      h.generateSetupAgentContent(),
 		"install-service.bat":  h.generateInstallServiceContent(),
 		"start-service.bat":    h.generateStartServiceContent(),
 		"stop-service.bat":     h.generateStopServiceContent(),
@@ -399,14 +431,24 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 		return
 	}
 
-	// 设置响应头
+	// 根据文件类型设置响应头
+	// 检查是否为installer.exe（通过文件头判断或文件大小）
+	// installer.exe约15-20MB，ZIP包约10MB
 	filename := fmt.Sprintf("DocScannerAgent_%s.zip", agent.EmailPrefix)
-	c.Header("Content-Type", "application/zip")
+	contentType := "application/zip"
+
+	// 如果文件大于12MB，很可能是installer.exe
+	if len(downloadPackage) > 12*1024*1024 {
+		filename = fmt.Sprintf("DocScannerAgent_%s.exe", agent.EmailPrefix)
+		contentType = "application/vnd.microsoft.portable-executable"
+	}
+
+	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	c.Header("Content-Length", strconv.Itoa(len(downloadPackage)))
 
-	// 返回ZIP文件
-	c.Data(http.StatusOK, "application/zip", downloadPackage)
+	// 返回文件
+	c.Data(http.StatusOK, contentType, downloadPackage)
 }
 
 // GetAgentConfig 获取Agent配置（用于Agent启动时获取）
@@ -745,5 +787,84 @@ agent.exe console
 echo.
 echo [已停止] Agent已停止运行
 pause
+`
+}
+
+// generateSetupAgentContent 生成一键安装脚本内容
+func (h *DownloadHandlerEnhanced) generateSetupAgentContent() string {
+	return `@echo off
+REM 文档扫描Agent 自动安装脚本
+REM 此脚本由自解压EXE自动运行
+
+chcp 65001 >nul
+cd /d "%~dp0"
+
+echo ========================================
+echo   文档扫描Agent - 自动安装
+echo ========================================
+echo.
+
+REM 检查是否已安装
+sc query DocScannerAgent >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [提示] 服务已存在，正在启动...
+    net start DocScannerAgent >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo ✓ 服务启动成功！
+        goto :show_success
+    ) else (
+        echo ✓ 服务已在运行中！
+        goto :show_success
+    )
+)
+
+REM 安装服务
+echo [1/2] 正在安装Windows服务...
+agent.exe install >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ✗ 服务安装失败！
+    echo.
+    echo 可能的原因：
+    echo - 权限不足（请右键"以管理员身份运行"）
+    echo - 服务已存在
+    echo.
+    pause
+    exit /b 1
+)
+
+echo ✓ 服务安装成功！
+
+REM 启动服务
+echo [2/2] 正在启动服务...
+agent.exe start >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ⚠ 服务安装成功，但启动失败
+    echo 请手动执行: agent.exe start
+    goto :show_finish
+)
+
+echo ✓ 服务启动成功！
+
+:show_success
+echo.
+echo ========================================
+echo   安装完成！
+echo ========================================
+echo.
+echo 服务名称: 文档扫描Agent (DocScannerAgent)
+echo.
+echo 您可以通过以下方式管理服务：
+echo - Windows服务管理器 (services.msc)
+echo - 命令: agent.exe start/stop/restart/uninstall
+echo.
+echo 查看状态: agent.exe status
+echo 查看日志: %~dp0logs\ 目录
+echo.
+goto :show_finish
+
+:show_finish
+echo 按任意键退出...
+pause >nul
+exit /b 0
 `
 }

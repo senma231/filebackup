@@ -31,8 +31,8 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# 安装必要的工具
-RUN apk add --no-cache ca-certificates
+# 安装必要的工具（包括7z用于生成自解压EXE）
+RUN apk add --no-cache ca-certificates 7zip
 
 # 创建数据目录
 RUN mkdir -p /app/data /app/bin
