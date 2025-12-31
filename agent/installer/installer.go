@@ -6,24 +6,23 @@ package main
 import (
 	"embed"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 //go:embed agent.exe
-var embeddedAgentEXE embed.FS
+var embeddedAgentEXE []byte
 
 func init() {
-	// 调试：检查嵌入的文件是否存在及其大小
-	if file, err := embeddedAgentEXE.Open("agent.exe"); err == nil {
-		if info, err := file.Stat(); err == nil {
-			fmt.Printf("[DEBUG] Embedded agent.exe size: %d bytes\n", info.Size())
-		}
-		file.Close()
-	} else {
-		fmt.Printf("[DEBUG] Failed to open embedded agent.exe: %v\n", err)
+	// 调试：检查嵌入的文件大小
+	fmt.Printf("[DEBUG] Embedded agent.exe size: %d bytes (%.2f MB)\n",
+		len(embeddedAgentEXE), float64(len(embeddedAgentEXE))/1024/1024)
+
+	if len(embeddedAgentEXE) == 0 {
+		fmt.Println("[ERROR] Embedded agent.exe is empty! Build may have failed.")
+	} else if len(embeddedAgentEXE) < 1024*1024 {
+		fmt.Printf("[WARNING] Embedded agent.exe seems too small (%d bytes)\n", len(embeddedAgentEXE))
 	}
 }
 
@@ -102,20 +101,24 @@ func main() {
 }
 
 func copyEmbeddedFile(embeddedPath, destPath string) error {
-	srcFile, err := embeddedAgentEXE.Open(embeddedPath)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
+	// 现在 embeddedAgentEXE 是 []byte，直接写入文件
 	dstFile, err := os.Create(destPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("创建文件失败: %w", err)
 	}
 	defer dstFile.Close()
 
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+	// 直接写入嵌入的字节数据
+	n, err := dstFile.Write(embeddedAgentEXE)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %w", err)
+	}
+
+	if n != len(embeddedAgentEXE) {
+		return fmt.Errorf("写入不完整: 写入 %d 字节，期望 %d 字节", n, len(embeddedAgentEXE))
+	}
+
+	return nil
 }
 
 func pause() {
