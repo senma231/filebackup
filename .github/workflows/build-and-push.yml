@@ -194,6 +194,30 @@ jobs:
           ls -lh ../../build/installer.exe
           file ../../build/installer.exe || echo "file command not available"
 
+          # 检查 installer.exe 的实际大小
+          installer_size=$(stat -c%s ../../build/installer.exe 2>/dev/null || stat -f%z ../../build/installer.exe)
+          agent_size=$(stat -c%s agent.exe 2>/dev/null || stat -f%z agent.exe)
+
+          echo ""
+          echo "=== Size comparison ==="
+          echo "agent.exe size:     $agent_size bytes"
+          echo "installer.exe size: $installer_size bytes"
+          echo "Difference:         $(($installer_size - $agent_size)) bytes"
+
+          if [ "$installer_size" -le "$agent_size" ]; then
+            echo "❌ CRITICAL ERROR: installer.exe is NOT larger than agent.exe!"
+            echo "   This means embed FAILED completely!"
+            echo "   installer.exe should be at least agent.exe + 1-2MB"
+            exit 1
+          elif [ "$installer_size" -lt $(($agent_size + 500000)) ]; then
+            echo "⚠️  WARNING: installer.exe is barely larger than agent.exe"
+            echo "   Expected: agent.exe + ~1-2MB for installer code"
+            echo "   Actual difference: only $(($installer_size - $agent_size)) bytes"
+            echo "   This suggests embed may have partially failed"
+          else
+            echo "✅ Size looks good! installer.exe is $(($installer_size - $agent_size)) bytes larger"
+          fi
+
           # 复制到server目录
           mkdir -p ../../server/agent_bin
           cp ../../build/installer.exe ../../server/agent_bin/DocScannerAgent-Setup.exe
