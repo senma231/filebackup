@@ -140,15 +140,10 @@ jobs:
           echo "=== Building installer.exe ==="
           cd agent
 
-          # 将agent.exe复制到installer目录用于嵌入
-          mkdir -p installer
-          cp agent.exe installer/agent.exe
-
+          # 注意：新方案不再需要复制agent.exe，installer会在运行时从服务器下载
           echo "=== Verification before build ==="
           echo "agent.exe size:"
           ls -lh agent.exe
-          echo "installer/agent.exe size:"
-          ls -lh installer/agent.exe
           echo "installer/installer.go exists:"
           ls -lh installer/installer.go
 
@@ -156,36 +151,28 @@ jobs:
           echo "installer directory contents:"
           ls -la installer/
 
-          # 进入installer目录编译（确保embed能正确找到相对路径的文件）
+          # 进入installer目录编译
           cd installer
 
           # 验证go.mod存在
           if [ ! -f "go.mod" ]; then
             echo "❌ ERROR: go.mod not found in installer directory!"
-            echo "This is required for embed directive to work correctly"
+            echo "This is required for Go module context"
             exit 1
           fi
           echo "✓ go.mod exists"
 
-          # 验证agent.exe文件存在且有效
-          if [ ! -f "agent.exe" ]; then
-            echo "❌ ERROR: agent.exe not found in installer directory!"
-            ls -la
-            exit 1
-          fi
-
-          echo "✓ agent.exe exists, size: $(stat -c%s agent.exe 2>/dev/null || stat -f%z agent.exe) bytes"
+          # 新方案不再需要agent.exe，installer会运行时下载
+          echo "✓ Ready to build runtime downloader"
 
           export GOOS=windows
           export GOARCH=amd64
           export CGO_ENABLED=0
 
           echo "=== Starting go build ==="
-          # 注意：去掉 -trimpath 和 -ldflags="-s -w" 以确保 embed 正常工作
-          # 这些优化选项可能会破坏 embed 指令
-          # 文件大小会增加一些，但 embed 能正常工作更重要
-          echo "Building WITHOUT -trimpath and strip flags to ensure embed works..."
-          go build -v -o ../../build/installer.exe .
+          # 使用优化选项减小installer体积（现在不需要embed了）
+          echo "Building with optimization flags for smaller binary..."
+          go build -v -ldflags="-s -w" -trimpath -o ../../build/installer.exe .
 
           if [ $? -ne 0 ]; then
             echo "❌ Build failed!"
@@ -207,13 +194,13 @@ jobs:
           echo "agent.exe size:     $agent_size bytes (~$((agent_size / 1024 / 1024))MB)"
           echo "installer.exe size: $installer_size bytes (~$((installer_size / 1024 / 1024))MB)"
 
-          # 新方案：installer 是运行时下载器，应该很小（< 3MB）
-          if [ "$installer_size" -gt 3000000 ]; then
+          # 新方案：installer 是运行时下载器，应该很小（< 2MB，优化后）
+          if [ "$installer_size" -gt 2000000 ]; then
             echo "❌ ERROR: installer.exe is too large ($((installer_size / 1024 / 1024))MB)!"
-            echo "   Expected: < 3MB (runtime downloader, no embedded files)"
-            echo "   This suggests old embed code is still being compiled"
+            echo "   Expected: < 2MB (runtime downloader with optimizations)"
+            echo "   This suggests old code or missing optimization flags"
             exit 1
-          elif [ "$installer_size" -lt 500000 ]; then
+          elif [ "$installer_size" -lt 300000 ]; then
             echo "⚠️  WARNING: installer.exe seems too small ($((installer_size / 1024))KB)"
             echo "   This might indicate a build issue"
           else
@@ -229,14 +216,14 @@ jobs:
           ls -lh ../../server/agent_bin/DocScannerAgent-Setup.exe
           file ../../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
-          # 检查文件大小是否合理（新方案：应该 < 3MB，因为是运行时下载器）
+          # 检查文件大小是否合理（新方案：应该 < 2MB，因为是优化后的运行时下载器）
           size=$(stat -c%s ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../../server/agent_bin/DocScannerAgent-Setup.exe)
           size_mb=$((size / 1024 / 1024))
-          if [ "$size" -gt 3000000 ]; then
-            echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 3MB)"
-            echo "Expected: < 3MB (runtime downloader without embedded files)"
-            echo "This suggests old embed code might still be compiled!"
-          elif [ "$size" -lt 500000 ]; then
+          if [ "$size" -gt 2000000 ]; then
+            echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 2MB)"
+            echo "Expected: < 2MB (runtime downloader with optimizations)"
+            echo "This suggests old code or missing optimization flags!"
+          elif [ "$size" -lt 300000 ]; then
             echo "⚠ WARNING: installer.exe seems too small: $((size / 1024))KB"
             echo "This might indicate a build issue"
           else
@@ -289,11 +276,11 @@ jobs:
             ls -lh server/agent_bin/DocScannerAgent-Setup.exe
             size=$(stat -c%s server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z server/agent_bin/DocScannerAgent-Setup.exe)
             size_mb=$((size / 1024 / 1024))
-            if [ "$size" -gt 3000000 ]; then
+            if [ "$size" -gt 2000000 ]; then
               echo "⚠ WARNING: installer.exe is too large (${size_mb}MB)"
-              echo "Expected: < 3MB (runtime downloader)"
+              echo "Expected: < 2MB (runtime downloader)"
               echo "Continuing with build..."
-            elif [ "$size" -lt 500000 ]; then
+            elif [ "$size" -lt 300000 ]; then
               echo "⚠ WARNING: installer.exe seems too small ($((size / 1024))KB)"
               echo "Continuing with build..."
             else
