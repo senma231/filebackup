@@ -158,10 +158,36 @@ jobs:
 
           # 进入installer目录编译（确保embed能正确找到相对路径的文件）
           cd installer
+
+          # 验证go.mod存在
+          if [ ! -f "go.mod" ]; then
+            echo "❌ ERROR: go.mod not found in installer directory!"
+            echo "This is required for embed directive to work correctly"
+            exit 1
+          fi
+          echo "✓ go.mod exists"
+
+          # 验证agent.exe文件存在且有效
+          if [ ! -f "agent.exe" ]; then
+            echo "❌ ERROR: agent.exe not found in installer directory!"
+            ls -la
+            exit 1
+          fi
+
+          echo "✓ agent.exe exists, size: $(stat -c%s agent.exe 2>/dev/null || stat -f%z agent.exe) bytes"
+
           export GOOS=windows
           export GOARCH=amd64
           export CGO_ENABLED=0
+
+          echo "=== Starting go build ==="
           go build -v -ldflags="-s -w" -trimpath -o ../../build/installer.exe .
+
+          if [ $? -ne 0 ]; then
+            echo "❌ Build failed!"
+            exit 1
+          fi
+          echo "✓ Build completed"
 
           echo "=== After build ==="
           echo "build/installer.exe size:"
