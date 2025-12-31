@@ -186,8 +186,8 @@ jobs:
           file ../../build/installer.exe || echo "file command not available"
 
           # 检查 installer.exe 的实际大小
-          installer_size=$(stat -c%s ../../build/installer.exe 2>/dev/null || stat -f%z ../../build/installer.exe)
-          agent_size=$(stat -c%s agent.exe 2>/dev/null || stat -f%z agent.exe)
+          installer_size=$(stat -c'%s' ../../build/installer.exe 2>/dev/null || stat -f'%z' ../../build/installer.exe)
+          agent_size=$(stat -c'%s' ../agent.exe 2>/dev/null || stat -f'%z' ../agent.exe)
 
           echo ""
           echo "=== Size comparison ==="
@@ -217,7 +217,7 @@ jobs:
           file ../../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
           # 检查文件大小是否合理（新方案：应该 < 2MB，因为是优化后的运行时下载器）
-          size=$(stat -c%s ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../../server/agent_bin/DocScannerAgent-Setup.exe)
+          size=$(stat -c'%s' ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f'%z' ../../server/agent_bin/DocScannerAgent-Setup.exe)
           size_mb=$((size / 1024 / 1024))
           if [ "$size" -gt 2000000 ]; then
             echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 2MB)"
@@ -274,7 +274,7 @@ jobs:
           if [ -f "server/agent_bin/DocScannerAgent-Setup.exe" ]; then
             echo "✓ DocScannerAgent-Setup.exe exists"
             ls -lh server/agent_bin/DocScannerAgent-Setup.exe
-            size=$(stat -c%s server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z server/agent_bin/DocScannerAgent-Setup.exe)
+            size=$(stat -c'%s' server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f'%z' server/agent_bin/DocScannerAgent-Setup.exe)
             size_mb=$((size / 1024 / 1024))
             if [ "$size" -gt 2000000 ]; then
               echo "⚠ WARNING: installer.exe is too large (${size_mb}MB)"
