@@ -181,7 +181,11 @@ jobs:
           export CGO_ENABLED=0
 
           echo "=== Starting go build ==="
-          go build -v -ldflags="-s -w" -trimpath -o ../../build/installer.exe .
+          # 注意：去掉 -trimpath 和 -ldflags="-s -w" 以确保 embed 正常工作
+          # 这些优化选项可能会破坏 embed 指令
+          # 文件大小会增加一些，但 embed 能正常工作更重要
+          echo "Building WITHOUT -trimpath and strip flags to ensure embed works..."
+          go build -v -o ../../build/installer.exe .
 
           if [ $? -ne 0 ]; then
             echo "❌ Build failed!"
