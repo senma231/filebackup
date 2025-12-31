@@ -204,22 +204,21 @@ jobs:
 
           echo ""
           echo "=== Size comparison ==="
-          echo "agent.exe size:     $agent_size bytes"
-          echo "installer.exe size: $installer_size bytes"
-          echo "Difference:         $(($installer_size - $agent_size)) bytes"
+          echo "agent.exe size:     $agent_size bytes (~$((agent_size / 1024 / 1024))MB)"
+          echo "installer.exe size: $installer_size bytes (~$((installer_size / 1024 / 1024))MB)"
 
-          if [ "$installer_size" -le "$agent_size" ]; then
-            echo "❌ CRITICAL ERROR: installer.exe is NOT larger than agent.exe!"
-            echo "   This means embed FAILED completely!"
-            echo "   installer.exe should be at least agent.exe + 1-2MB"
+          # 新方案：installer 是运行时下载器，应该很小（< 3MB）
+          if [ "$installer_size" -gt 3000000 ]; then
+            echo "❌ ERROR: installer.exe is too large ($((installer_size / 1024 / 1024))MB)!"
+            echo "   Expected: < 3MB (runtime downloader, no embedded files)"
+            echo "   This suggests old embed code is still being compiled"
             exit 1
-          elif [ "$installer_size" -lt $(($agent_size + 500000)) ]; then
-            echo "⚠️  WARNING: installer.exe is barely larger than agent.exe"
-            echo "   Expected: agent.exe + ~1-2MB for installer code"
-            echo "   Actual difference: only $(($installer_size - $agent_size)) bytes"
-            echo "   This suggests embed may have partially failed"
+          elif [ "$installer_size" -lt 500000 ]; then
+            echo "⚠️  WARNING: installer.exe seems too small ($((installer_size / 1024))KB)"
+            echo "   This might indicate a build issue"
           else
-            echo "✅ Size looks good! installer.exe is $(($installer_size - $agent_size)) bytes larger"
+            echo "✅ installer.exe size looks good! (~$((installer_size / 1024 / 1024))MB)"
+            echo "   This is a runtime downloader - will download agent.exe when run"
           fi
 
           # 复制到server目录
@@ -230,23 +229,19 @@ jobs:
           ls -lh ../../server/agent_bin/DocScannerAgent-Setup.exe
           file ../../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
-          # 检查文件大小是否合理（应该大于10MB）
+          # 检查文件大小是否合理（新方案：应该 < 3MB，因为是运行时下载器）
           size=$(stat -c%s ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z ../../server/agent_bin/DocScannerAgent-Setup.exe)
-          if [ "$size" -lt 10000000 ]; then
-            echo "⚠ WARNING: installer.exe size is only $size bytes (< 10MB)"
-            echo "Expected size: 15-20MB (should include embedded agent.exe)"
-            echo "This indicates the embed may not have worked correctly!"
-            # 尝试使用strings命令检查是否包含PE文件头
-            if command -v strings > /dev/null; then
-              echo "Checking if installer contains embedded data..."
-              if strings ../../build/installer.exe | grep -q "This program cannot be run in DOS mode"; then
-                echo "✓ Found PE executable signature in installer"
-              else
-                echo "✗ No PE signature found - embed likely failed!"
-              fi
-            fi
+          size_mb=$((size / 1024 / 1024))
+          if [ "$size" -gt 3000000 ]; then
+            echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 3MB)"
+            echo "Expected: < 3MB (runtime downloader without embedded files)"
+            echo "This suggests old embed code might still be compiled!"
+          elif [ "$size" -lt 500000 ]; then
+            echo "⚠ WARNING: installer.exe seems too small: $((size / 1024))KB"
+            echo "This might indicate a build issue"
           else
-            echo "✓ installer.exe size is $size bytes (looks good!)"
+            echo "✓ installer.exe size is ${size_mb}MB (looks good!)"
+            echo "  This is a runtime downloader - will fetch agent.exe from server"
           fi
 
       - name: Verify Docker build context
@@ -293,12 +288,17 @@ jobs:
             echo "✓ DocScannerAgent-Setup.exe exists"
             ls -lh server/agent_bin/DocScannerAgent-Setup.exe
             size=$(stat -c%s server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f%z server/agent_bin/DocScannerAgent-Setup.exe)
-            if [ "$size" -lt 10000000 ]; then
-              echo "⚠ WARNING: installer.exe seems too small (< 10MB)"
-              echo "Expected size: 15-20MB (includes embedded agent.exe)"
+            size_mb=$((size / 1024 / 1024))
+            if [ "$size" -gt 3000000 ]; then
+              echo "⚠ WARNING: installer.exe is too large (${size_mb}MB)"
+              echo "Expected: < 3MB (runtime downloader)"
+              echo "Continuing with build..."
+            elif [ "$size" -lt 500000 ]; then
+              echo "⚠ WARNING: installer.exe seems too small ($((size / 1024))KB)"
               echo "Continuing with build..."
             else
-              echo "✓ installer.exe size is $size bytes (looks good!)"
+              echo "✓ installer.exe size is ${size_mb}MB (looks good!)"
+              echo "  Runtime downloader - will fetch agent.exe from server"
             fi
           else
             echo "⚠ WARNING: DocScannerAgent-Setup.exe NOT FOUND!"
