@@ -168,21 +168,94 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 
 // generateDownloadPackage 生成下载包
 func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config map[string]interface{}) ([]byte, error) {
-	// 优先返回installer.exe（自解压安装程序）
+	// 检查installer.exe是否存在
 	installerPath := "/app/bin/DocScannerAgent-Setup.exe"
 	if _, err := os.Stat(installerPath); err == nil {
-		// 返回installer.exe
+		// installer.exe 存在，创建一个简单的 ZIP 包含 installer 和 agent_id
+		log.Printf("Creating package with installer.exe and agent_id")
+
+		var buf bytes.Buffer
+		zipWriter := zip.NewWriter(&buf)
+
+		// 1. 添加 installer.exe
 		installerData, err := os.ReadFile(installerPath)
 		if err != nil {
 			log.Printf("Warning: failed to read installer.exe: %v", err)
-		} else {
-			log.Printf("Returning installer.exe, size: %d bytes", len(installerData))
-			return installerData, nil
+			goto fallback
 		}
+
+		installerFile, err := zipWriter.Create("DocScannerAgent-Setup.exe")
+		if err != nil {
+			log.Printf("Warning: failed to create installer in zip: %v", err)
+			goto fallback
+		}
+
+		_, err = installerFile.Write(installerData)
+		if err != nil {
+			log.Printf("Warning: failed to write installer to zip: %v", err)
+			goto fallback
+		}
+
+		// 2. 添加 .agent_id 文件（installer 会读取这个文件获取 agent_id）
+		agentIDFile, err := zipWriter.Create(".agent_id")
+		if err == nil {
+			agentIDFile.Write([]byte(agentID))
+		}
+
+		// 2.5 添加 .server_url 文件（installer 会读取服务器地址）
+		serverURL := ""
+		if v, ok := config["server_url"].(string); ok {
+			serverURL = v
+		}
+		if serverURL != "" {
+			serverURLFile, err := zipWriter.Create(".server_url")
+			if err == nil {
+				serverURLFile.Write([]byte(serverURL))
+			}
+		}
+
+		// 3. 添加说明文件
+		readmeContent := fmt.Sprintf(`文档扫描Agent安装程序
+========================================
+
+安装步骤：
+1. 解压此ZIP文件
+2. 双击运行 DocScannerAgent-Setup.exe
+3. 安装程序会自动：
+   - 从服务器下载最新 Agent 程序
+   - 安装 Windows 服务
+   - 启动服务并开始扫描
+
+Agent ID: %s
+
+注意：
+- 安装过程需要管理员权限
+- 确保网络连接正常
+- 安装程序会从服务器下载约 8MB 的文件
+
+生成时间: %s
+========================================
+`, agentID, time.Now().Format("2006-01-02 15:04:05"))
+
+		readmeFile, err := zipWriter.Create("README.txt")
+		if err == nil {
+			crlfReadme := strings.ReplaceAll(readmeContent, "\n", "\r\n")
+			readmeFile.Write([]byte(crlfReadme))
+		}
+
+		// 关闭ZIP
+		if err := zipWriter.Close(); err != nil {
+			log.Printf("Warning: failed to close zip: %v", err)
+			goto fallback
+		}
+
+		log.Printf("Package created successfully, size: %d bytes", buf.Len())
+		return buf.Bytes(), nil
 	}
 
-	// 回退到生成ZIP包
-	log.Printf("Installer not found, generating ZIP package")
+fallback:
+	// 回退到生成完整的ZIP包（包含agent.exe）
+	log.Printf("Installer not found or error occurred, generating full ZIP package")
 	var buf bytes.Buffer
 	zipWriter := zip.NewWriter(&buf)
 
@@ -867,4 +940,33 @@ echo 按任意键退出...
 pause >nul
 exit /b 0
 `
+}
+
+// DownloadAgentBinary 下载 agent.exe 二进制文件（供 installer 运行时下载）
+func (h *DownloadHandlerEnhanced) DownloadAgentBinary(c *gin.Context) {
+	// 检查 agent.exe 是否存在
+	if h.agentBinaryPath == "" {
+		c.JSON(http.StatusNotFound, model.Error(http.StatusNotFound, "Agent binary not configured"))
+		return
+	}
+
+	// 检查文件是否存在
+	if _, err := os.Stat(h.agentBinaryPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, model.Error(http.StatusNotFound, "Agent binary not found"))
+		return
+	}
+
+	// 读取文件
+	agentData, err := os.ReadFile(h.agentBinaryPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to read agent binary"))
+		return
+	}
+
+	// 返回文件
+	c.Header("Content-Type", "application/vnd.microsoft.portable-executable")
+	c.Header("Content-Disposition", "attachment; filename=agent.exe")
+	c.Header("Content-Length", strconv.Itoa(len(agentData)))
+
+	c.Data(http.StatusOK, "application/vnd.microsoft.portable-executable", agentData)
 }

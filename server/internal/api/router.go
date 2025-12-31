@@ -101,6 +101,8 @@ func (s *Server) Start(addr string) error {
 			download.HEAD("/enhanced/package/:agent_id", downloadHandlerEnhanced.DownloadPackage)
 			download.GET("/agent/:agent_id", downloadHandler.GetAgentConfig)
 			download.GET("/agent/:agent_id/download", downloadHandler.DownloadAgent)
+			// 新增：提供 agent.exe 二进制文件下载（installer 运行时下载）
+			download.GET("/agent-binary", downloadHandlerEnhanced.DownloadAgentBinary)
 		}
 
 		// Agent相关接口
