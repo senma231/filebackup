@@ -194,14 +194,15 @@ jobs:
           echo "agent.exe size:     $agent_size bytes (~$((agent_size / 1024 / 1024))MB)"
           echo "installer.exe size: $installer_size bytes (~$((installer_size / 1024 / 1024))MB)"
 
-          # 新方案：installer 是运行时下载器，应该很小（< 2MB，优化后）
-          if [ "$installer_size" -gt 2000000 ]; then
+          # 新方案：installer 是运行时下载器，应该很小（< 6MB，优化后的Windows Go程序）
+          # 注意：Windows Go程序即使优化后通常也有3-5MB（Go运行时 + 标准库）
+          if [ "$installer_size" -gt 6000000 ]; then
             echo "❌ ERROR: installer.exe is too large ($((installer_size / 1024 / 1024))MB)!"
-            echo "   Expected: < 2MB (runtime downloader with optimizations)"
-            echo "   This suggests old code or missing optimization flags"
+            echo "   Expected: < 6MB (runtime downloader with optimizations)"
+            echo "   This suggests possible issues with build"
             exit 1
-          elif [ "$installer_size" -lt 300000 ]; then
-            echo "⚠️  WARNING: installer.exe seems too small ($((installer_size / 1024))KB)"
+          elif [ "$installer_size" -lt 1000000 ]; then
+            echo "⚠️  WARNING: installer.exe seems too small ($((installer_size / 1024 / 1024))MB)"
             echo "   This might indicate a build issue"
           else
             echo "✅ installer.exe size looks good! (~$((installer_size / 1024 / 1024))MB)"
@@ -216,15 +217,15 @@ jobs:
           ls -lh ../../server/agent_bin/DocScannerAgent-Setup.exe
           file ../../server/agent_bin/DocScannerAgent-Setup.exe || echo "file command not available"
 
-          # 检查文件大小是否合理（新方案：应该 < 2MB，因为是优化后的运行时下载器）
+          # 检查文件大小是否合理（新方案：应该 < 6MB，因为是优化后的运行时下载器）
           size=$(stat -c'%s' ../../server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f'%z' ../../server/agent_bin/DocScannerAgent-Setup.exe)
           size_mb=$((size / 1024 / 1024))
-          if [ "$size" -gt 2000000 ]; then
-            echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 2MB)"
-            echo "Expected: < 2MB (runtime downloader with optimizations)"
-            echo "This suggests old code or missing optimization flags!"
-          elif [ "$size" -lt 300000 ]; then
-            echo "⚠ WARNING: installer.exe seems too small: $((size / 1024))KB"
+          if [ "$size" -gt 6000000 ]; then
+            echo "⚠ WARNING: installer.exe is too large: ${size_mb}MB (> 6MB)"
+            echo "Expected: < 6MB (runtime downloader with optimizations)"
+            echo "This suggests possible build issues!"
+          elif [ "$size" -lt 1000000 ]; then
+            echo "⚠ WARNING: installer.exe seems too small: ${size_mb}MB"
             echo "This might indicate a build issue"
           else
             echo "✓ installer.exe size is ${size_mb}MB (looks good!)"
@@ -276,12 +277,12 @@ jobs:
             ls -lh server/agent_bin/DocScannerAgent-Setup.exe
             size=$(stat -c'%s' server/agent_bin/DocScannerAgent-Setup.exe 2>/dev/null || stat -f'%z' server/agent_bin/DocScannerAgent-Setup.exe)
             size_mb=$((size / 1024 / 1024))
-            if [ "$size" -gt 2000000 ]; then
+            if [ "$size" -gt 6000000 ]; then
               echo "⚠ WARNING: installer.exe is too large (${size_mb}MB)"
-              echo "Expected: < 2MB (runtime downloader)"
+              echo "Expected: < 6MB (runtime downloader)"
               echo "Continuing with build..."
-            elif [ "$size" -lt 300000 ]; then
-              echo "⚠ WARNING: installer.exe seems too small ($((size / 1024))KB)"
+            elif [ "$size" -lt 1000000 ]; then
+              echo "⚠ WARNING: installer.exe seems too small (${size_mb}MB)"
               echo "Continuing with build..."
             else
               echo "✓ installer.exe size is ${size_mb}MB (looks good!)"
