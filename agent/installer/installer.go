@@ -115,6 +115,18 @@ func main() {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("❌ 安装服务失败: %v\n", err)
+		fmt.Println()
+		fmt.Println("可能的原因：")
+		fmt.Println("  - 权限不足：需要管理员权限才能安装Windows服务")
+		fmt.Println("  - 解决方法：右键点击 DocScannerAgent-Setup.exe")
+		fmt.Println("             选择 '以管理员身份运行'")
+		fmt.Println()
+		fmt.Println("或者手动安装：")
+		fmt.Printf("  1. 以管理员身份运行 CMD\n")
+		fmt.Printf("  2. cd %s\n", targetDir)
+		fmt.Printf("  3. agent.exe install\n")
+		fmt.Printf("  4. agent.exe start\n")
+		fmt.Println()
 		pause()
 		return
 	}

@@ -165,7 +165,10 @@ func (h *DownloadHandler) GetAgentConfig(c *gin.Context) {
 		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
 	}
 
-	c.JSON(http.StatusOK, model.Success(config))
+	// 直接返回JSON配置（供installer下载为config.json）
+	c.Header("Content-Type", "application/json")
+	c.Header("Content-Disposition", "attachment; filename=config.json")
+	c.JSON(http.StatusOK, config)
 }
 
 // DownloadAgent 下载Agent程序
