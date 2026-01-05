@@ -119,9 +119,12 @@ func (h *DownloadHandlerEnhanced) RequestDownloadEnhanced(c *gin.Context) {
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
-		"max_file_size": 104857600,
+		"max_file_size":   104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
+		// 日志配置：固定路径与agent.exe安装位置一致，方便用户查找
+		"log_path":  "C:\\Users\\Public\\Documents\\DocScannerAgent\\logs",
+		"log_level": "info",
 		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
 		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
 		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
@@ -555,6 +558,7 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 		"agent_id":          agentID,
 		"email":             agent.Email,
 		"email_prefix":      agent.EmailPrefix,
+		"token":             "",     // 空token，服务器端不验证
 		"heartbeat_interval": 30,
 		"full_disk_scan":    true, // 启用全盘扫描
 		"scan_paths": []string{
@@ -572,9 +576,12 @@ func (h *DownloadHandlerEnhanced) DownloadPackage(c *gin.Context) {
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
-		"max_file_size": 104857600,
+		"max_file_size":   104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
+		// 日志配置：固定路径与agent.exe安装位置一致，方便用户查找
+		"log_path":  "C:\\Users\\Public\\Documents\\DocScannerAgent\\logs",
+		"log_level": "info",
 		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
 		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
 		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
@@ -630,6 +637,7 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 		"agent_id":          agentID,
 		"email":             agent.Email,
 		"email_prefix":      agent.EmailPrefix,
+		"token":             "",     // 空token，服务器端不验证
 		"heartbeat_interval": 30,
 		"full_disk_scan":    true, // 启用全盘扫描
 		"scan_paths": []string{
@@ -647,9 +655,12 @@ func (h *DownloadHandlerEnhanced) GetAgentConfig(c *gin.Context) {
 		"exclude_patterns": []string{
 			"*.log", "*.tmp", "~$*", "._*", ".DS_Store", "Thumbs.db", "desktop.ini",
 		},
-		"max_file_size": 104857600,
+		"max_file_size":   104857600,
 		"incremental_scan": true,
 		"compress_enabled": true,
+		// 日志配置：固定路径与agent.exe安装位置一致，方便用户查找
+		"log_path":  "C:\\Users\\Public\\Documents\\DocScannerAgent\\logs",
+		"log_level": "info",
 		// 存储配置说明：Agent 启动后会自动从 Server 获取存储配置
 		// 请在 Server 管理后台配置存储类型（SFTP、WebDAV、本地存储等）
 		"_storage_note": "Storage configuration will be automatically fetched from server on agent startup",
