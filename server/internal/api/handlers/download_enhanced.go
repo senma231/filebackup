@@ -253,6 +253,7 @@ Agent ID: %s
 
 		// 4. 添加卸载脚本
 		uninstallContent := `@echo off
+chcp 65001 >nul
 :: 文档扫描Agent - 卸载脚本
 :: 必须以管理员权限运行
 

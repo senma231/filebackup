@@ -219,7 +219,14 @@ func downloadFile(url, filepath string) error {
 		return fmt.Errorf("写入文件失败: %w", err)
 	}
 
-	fmt.Printf("  下载: %.2f MB\n", float64(written)/1024/1024)
+	// 自适应显示单位
+	if written < 1024 {
+		fmt.Printf("  下载: %d B\n", written)
+	} else if written < 1024*1024 {
+		fmt.Printf("  下载: %.2f KB\n", float64(written)/1024)
+	} else {
+		fmt.Printf("  下载: %.2f MB\n", float64(written)/1024/1024)
+	}
 
 	return nil
 }
