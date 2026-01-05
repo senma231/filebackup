@@ -228,6 +228,14 @@ func (h *DownloadHandlerEnhanced) generateDownloadPackage(agentID string, config
 
 Agent ID: %s
 
+卸载方法：
+1. 双击运行 uninstall.bat（需要管理员权限）
+2. 或手动执行以下命令：
+   cd C:\Users\Public\Documents\DocScannerAgent
+   agent.exe stop
+   agent.exe uninstall
+   rmdir /s /q C:\Users\Public\Documents\DocScannerAgent
+
 注意：
 - 安装过程需要管理员权限
 - 确保网络连接正常
@@ -241,6 +249,80 @@ Agent ID: %s
 		if err == nil {
 			crlfReadme := strings.ReplaceAll(readmeContent, "\n", "\r\n")
 			readmeFile.Write([]byte(crlfReadme))
+		}
+
+		// 4. 添加卸载脚本
+		uninstallContent := `@echo off
+:: 文档扫描Agent - 卸载脚本
+:: 必须以管理员权限运行
+
+echo ========================================
+echo   文档扫描Agent - 卸载程序
+echo ========================================
+echo.
+
+:: 检查管理员权限
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo 错误：需要管理员权限！
+    echo 请右键点击此脚本，选择"以管理员身份运行"
+    echo.
+    pause
+    exit /b 1
+)
+
+set INSTALL_DIR=C:\Users\Public\Documents\DocScannerAgent
+
+:: 检查安装目录是否存在
+if not exist "%INSTALL_DIR%" (
+    echo 未找到安装目录: %INSTALL_DIR%
+    echo Agent可能已被卸载或未安装
+    echo.
+    pause
+    exit /b 0
+)
+
+echo [1/3] 停止服务...
+cd /d "%INSTALL_DIR%"
+if exist agent.exe (
+    agent.exe stop
+    echo   服务已停止
+) else (
+    echo   未找到agent.exe，跳过停止服务
+)
+echo.
+
+echo [2/3] 卸载服务...
+if exist agent.exe (
+    agent.exe uninstall
+    echo   服务已卸载
+) else (
+    echo   跳过服务卸载
+)
+echo.
+
+echo [3/3] 删除文件...
+cd /d C:\
+timeout /t 2 /nobreak >nul
+rmdir /s /q "%INSTALL_DIR%"
+if exist "%INSTALL_DIR%" (
+    echo   警告：部分文件可能正在使用，删除失败
+    echo   请手动删除: %INSTALL_DIR%
+) else (
+    echo   文件已删除
+)
+echo.
+
+echo ========================================
+echo   卸载完成！
+echo ========================================
+echo.
+pause
+`
+		uninstallFile, err := zipWriter.Create("uninstall.bat")
+		if err == nil {
+			crlfUninstall := strings.ReplaceAll(uninstallContent, "\n", "\r\n")
+			uninstallFile.Write([]byte(crlfUninstall))
 		}
 
 		// 关闭ZIP
