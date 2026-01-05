@@ -165,12 +165,22 @@ jobs:
           # 新方案不再需要agent.exe，installer会运行时下载
           echo "✓ Ready to build runtime downloader"
 
+          # 安装 rsrc 工具（用于嵌入manifest）
+          echo "=== Installing rsrc tool ==="
+          go install github.com/akavel/rsrc@latest
+
+          # 使用rsrc生成syso文件（包含manifest）
+          echo "=== Embedding manifest ==="
+          ~/go/bin/rsrc -manifest installer.manifest -o installer.syso
+          echo "✓ Manifest embedded as installer.syso"
+
           export GOOS=windows
           export GOARCH=amd64
           export CGO_ENABLED=0
 
           echo "=== Starting go build ==="
           # 使用优化选项减小installer体积（现在不需要embed了）
+          # installer.syso 会被自动包含到编译中
           echo "Building with optimization flags for smaller binary..."
           go build -v -ldflags="-s -w" -trimpath -o ../../build/installer.exe .
 
