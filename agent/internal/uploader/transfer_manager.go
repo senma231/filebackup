@@ -148,8 +148,8 @@ func (tm *TransferManager) GetUploadStats() (pending, uploading, success int, fa
 }
 
 // generateRemotePath 生成远程路径
-// 新路径结构：Agent邮箱前缀/AgentID/上传日期/修改日期/文档类型/文件名
-// 例如：22@j10vf/agent-1766548785379001281/2025-12-24/2025-12-20/docx/报告.docx
+// 新路径结构：Agent邮箱前缀/AgentID/上传日期/文档类型/文件名
+// 例如：22@j10vf/agent-1766548785379001281/2025-12-24/docx/报告.docx
 func (tm *TransferManager) generateRemotePath(file *scanner.FileInfo) string {
 	// 1. Agent邮箱前缀（用于区分不同用户）
 	emailPrefix := tm.agentConfig.EmailPrefix
@@ -166,10 +166,7 @@ func (tm *TransferManager) generateRemotePath(file *scanner.FileInfo) string {
 	// 3. 上传日期（当前日期）
 	uploadDate := time.Now().Format("2006-01-02")
 
-	// 4. 修改日期（文件的修改时间）
-	modifiedDate := file.ModifiedTime.Format("2006-01-02")
-
-	// 5. 文档类型（文件扩展名，去掉点号，转小写）
+	// 4. 文档类型（文件扩展名，去掉点号，转小写）
 	ext := strings.TrimPrefix(filepath.Ext(file.Path), ".")
 	if ext == "" {
 		ext = "unknown"
@@ -186,12 +183,13 @@ func (tm *TransferManager) generateRemotePath(file *scanner.FileInfo) string {
 		ext = "pptx"
 	}
 
-	// 6. 文件名
+	// 5. 文件名
 	filename := filepath.Base(file.Path)
 
-	// 构建远程路径：邮箱前缀/AgentID/上传日期/修改日期/文档类型/文件名
-	// 这样既保留了用户和设备维度，又保留了时间维度，还按类型分类，便于查找和管理
-	remotePath := filepath.Join(emailPrefix, agentID, uploadDate, modifiedDate, ext, filename)
+	// 构建远程路径：邮箱前缀/AgentID/上传日期/文档类型/文件名
+	// 这样既保留了用户和设备维度，又保留了上传时间维度，还按类型分类，便于查找和管理
+	// 同一天内同名文件会被覆盖，保留最新版本
+	remotePath := filepath.Join(emailPrefix, agentID, uploadDate, ext, filename)
 
 	return filepath.ToSlash(remotePath)
 }
