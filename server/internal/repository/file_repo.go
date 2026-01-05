@@ -262,14 +262,14 @@ func (r *FileRepository) GetByAgentID(agentID string, limit int) ([]*model.FileU
 }
 
 // UpdateStatusByFileName 根据文件名更新状态
-func (r *FileRepository) UpdateStatusByFileName(agentID, fileName, status, errorMessage string) error {
+func (r *FileRepository) UpdateStatusByFileName(agentID, fileName, status, errorMessage string, uploadEndTime *time.Time) error {
 	query := `
 		UPDATE file_uploads
-		SET upload_status = ?, error_message = ?, upload_end_time = CASE WHEN ? = 'success' THEN CURRENT_TIMESTAMP ELSE upload_end_time END
+		SET upload_status = ?, error_message = ?, upload_end_time = ?
 		WHERE agent_id = ? AND file_name = ?
 	`
 
-	_, err := r.db.Exec(query, status, errorMessage, status, agentID, fileName)
+	_, err := r.db.Exec(query, status, errorMessage, uploadEndTime, agentID, fileName)
 	if err != nil {
 		return fmt.Errorf("failed to update file status: %w", err)
 	}

@@ -92,16 +92,18 @@ func (h *FileHandler) UploadProgress(c *gin.Context) {
 		}
 
 	case "completed":
-		// 上传完成
-		if err := h.repo.UpdateStatusByFileName(agentID, req.FileName, model.FileStatusSuccess, ""); err != nil {
+		// 上传完成 - 记录结束时间
+		now := time.Now()
+		if err := h.repo.UpdateStatusByFileName(agentID, req.FileName, model.FileStatusSuccess, "", &now); err != nil {
 			c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to update status"))
 			return
 		}
 
 	case "failed":
-		// 上传失败
+		// 上传失败 - 也记录结束时间以便统计
+		now := time.Now()
 		errorMsg := "Upload failed"
-		if err := h.repo.UpdateStatusByFileName(agentID, req.FileName, model.FileStatusFailed, errorMsg); err != nil {
+		if err := h.repo.UpdateStatusByFileName(agentID, req.FileName, model.FileStatusFailed, errorMsg, &now); err != nil {
 			c.JSON(http.StatusInternalServerError, model.Error(http.StatusInternalServerError, "Failed to update status"))
 			return
 		}
