@@ -18,6 +18,7 @@ import (
 
 	"doc-scanner-agent/internal/api"
 	"doc-scanner-agent/internal/config"
+	"doc-scanner-agent/internal/database"
 	"doc-scanner-agent/internal/heartbeat"
 	"doc-scanner-agent/internal/logger"
 	"doc-scanner-agent/internal/model"
@@ -255,11 +256,22 @@ func runConsoleMode() error {
 	}
 	log.Info("上传器创建成功: %s", uploadInstance.GetType())
 
+	// 初始化本地数据库（用于增量上传）
+	dbPath := filepath.Join(filepath.Dir(cfg.GetLogPath()), "agent.db")
+	log.Info("正在打开本地数据库: %s", dbPath)
+	db, err := database.Open(dbPath)
+	if err != nil {
+		log.Warn("打开本地数据库失败，将不使用增量上传: %v", err)
+		db = nil // 继续运行，但不使用增量上传
+	} else {
+		log.Info("本地数据库已打开，增量上传机制已启用")
+	}
+
 	// 初始化文件扫描器
-	scanEngine := scanner.NewEngine(cfg, log)
+	scanEngine := scanner.NewEngine(cfg, log, db)
 
 	// 创建文件传输管理器（使用新的TransferManager）
-	transferManager := uploader.NewTransferManager(cfg, uploadInstance, log)
+	transferManager := uploader.NewTransferManager(cfg, uploadInstance, log, db)
 
 	// 初始化心跳服务
 	heartbeatSvc := heartbeat.NewService(cfg, log, transferManager)
