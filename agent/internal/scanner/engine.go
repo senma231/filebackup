@@ -356,7 +356,7 @@ func (s *Scanner) scanPath(ctx context.Context, rootPath string) {
 
 		// 检查文件是否已上传且未修改（增量上传机制）
 		if s.db != nil {
-			uploaded, err := s.db.IsFileUploaded(file.Path, file.ModTime)
+			uploaded, err := s.db.IsFileUploaded(file.Path, file.ModifiedTime)
 			if err != nil {
 				s.logger.Warn("Error checking file upload status: %v", err)
 				// 出错时继续扫描该文件
