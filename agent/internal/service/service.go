@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"doc-scanner-agent/internal/api"
 	"doc-scanner-agent/internal/config"
+	"doc-scanner-agent/internal/database"
 	"doc-scanner-agent/internal/heartbeat"
 	"doc-scanner-agent/internal/logger"
 	"doc-scanner-agent/internal/model"
@@ -21,6 +23,7 @@ import (
 type AgentService struct {
 	cfg             *config.Config
 	log             *logger.Logger
+	db              *database.DB
 	scanEngine      *scanner.Scanner
 	transferManager *uploader.TransferManager
 	heartbeatSvc    *heartbeat.Service
@@ -95,11 +98,30 @@ func (s *AgentService) Start(svc service.Service) error {
 	}
 	s.log.Info("上传器创建成功: %s", uploadInstance.GetType())
 
+	// 初始化本地数据库（用于增量上传）
+	dbPath := filepath.Join(filepath.Dir(s.cfg.GetLogPath()), "agent.db")
+	s.log.Info("正在打开本地数据库: %s", dbPath)
+	db, err := database.Open(dbPath)
+	if err != nil {
+		s.log.Warn("打开本地数据库失败，将不使用增量上传: %v", err)
+		db = nil // 继续运行，但不使用增量上传
+	} else {
+		s.db = db
+		s.log.Info("本地数据库已打开，增量上传机制已启用")
+
+		// 清理90天前的旧记录
+		if count, err := db.CleanOldRecords(90); err != nil {
+			s.log.Warn("清理旧记录失败: %v", err)
+		} else if count > 0 {
+			s.log.Info("已清理 %d 条旧记录", count)
+		}
+	}
+
 	// 初始化文件扫描器
-	s.scanEngine = scanner.NewEngine(s.cfg, s.log)
+	s.scanEngine = scanner.NewEngine(s.cfg, s.log, db)
 
 	// 创建文件传输管理器
-	s.transferManager = uploader.NewTransferManager(s.cfg, uploadInstance, s.log)
+	s.transferManager = uploader.NewTransferManager(s.cfg, uploadInstance, s.log, db)
 
 	// 初始化心跳服务
 	s.heartbeatSvc = heartbeat.NewService(s.cfg, s.log, s.transferManager)
@@ -166,6 +188,15 @@ func (s *AgentService) Stop(svc service.Service) error {
 	if s.transferManager != nil {
 		if err := s.transferManager.Stop(); err != nil {
 			s.log.Error("停止上传器时出错: %v", err)
+		}
+	}
+
+	// 关闭数据库
+	if s.db != nil {
+		if err := s.db.Close(); err != nil {
+			s.log.Error("关闭数据库时出错: %v", err)
+		} else {
+			s.log.Info("数据库已关闭")
 		}
 	}
 

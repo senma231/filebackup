@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"doc-scanner-agent/internal/config"
+	"doc-scanner-agent/internal/database"
 )
 
 // Scanner 扫描引擎
 type Scanner struct {
 	config  *config.Config
 	logger  Logger
+	db      *database.DB
 	files   []*FileInfo
 	mu      sync.RWMutex
 	scanCh  chan string
@@ -31,10 +33,11 @@ type Logger interface {
 }
 
 // NewEngine 创建新的扫描引擎
-func NewEngine(cfg *config.Config, logger Logger) *Scanner {
+func NewEngine(cfg *config.Config, logger Logger, db *database.DB) *Scanner {
 	return &Scanner{
 		config:   cfg,
 		logger:   logger,
+		db:       db,
 		files:    make([]*FileInfo, 0),
 		scanCh:   make(chan string, 100),
 		resultCh: make(chan *FileInfo, 1000),
@@ -349,6 +352,21 @@ func (s *Scanner) scanPath(ctx context.Context, rootPath string) {
 		if file.Size > s.config.MaxFileSize {
 			s.logger.Debug("File too large, skipping: %s (%d bytes)", path, file.Size)
 			return nil
+		}
+
+		// 检查文件是否已上传且未修改（增量上传机制）
+		if s.db != nil {
+			uploaded, err := s.db.IsFileUploaded(file.Path, file.ModTime)
+			if err != nil {
+				s.logger.Warn("Error checking file upload status: %v", err)
+				// 出错时继续扫描该文件
+			} else if uploaded {
+				// 文件已上传且未修改，跳过
+				s.logger.Debug("File already uploaded and not modified, skipping: %s", path)
+				// 更新最后检查时间
+				s.db.UpdateCheckTime(file.Path)
+				return nil
+			}
 		}
 
 		// 发送文件信息

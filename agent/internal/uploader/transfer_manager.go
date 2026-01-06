@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"doc-scanner-agent/internal/config"
+	"doc-scanner-agent/internal/database"
 	"doc-scanner-agent/internal/scanner"
 )
 
@@ -21,17 +22,19 @@ type TransferManager struct {
 	agentConfig *config.Config // Agent配置
 	logger      Logger
 	uploader    Uploader       // 通用上传器接口
+	db          *database.DB   // 本地数据库（用于增量上传）
 	files       map[string]string // 本地路径 -> 远程路径
 	mu          sync.RWMutex
 	inFlight    map[string]*UploadTask // 正在上传的任务
 }
 
 // NewTransferManager 创建新的文件传输管理器
-func NewTransferManager(agentConfig *config.Config, uploader Uploader, logger Logger) *TransferManager {
+func NewTransferManager(agentConfig *config.Config, uploader Uploader, logger Logger, db *database.DB) *TransferManager {
 	return &TransferManager{
 		agentConfig: agentConfig,
 		uploader:    uploader,
 		logger:      logger,
+		db:          db,
 		files:       make(map[string]string),
 		inFlight:    make(map[string]*UploadTask),
 	}
@@ -281,6 +284,20 @@ func (tm *TransferManager) uploadFile(ctx context.Context, localPath string) {
 
 		// 通知Server上传成功
 		tm.reportUploadStatus(localPath, remotePath, "completed")
+
+		// 记录到本地数据库（增量上传机制）
+		if tm.db != nil {
+			fileInfo, err := os.Stat(localPath)
+			if err != nil {
+				tm.logger.Warn("无法获取文件信息用于记录上传: %s - %v", localPath, err)
+			} else {
+				if err := tm.db.RecordUpload(localPath, fileInfo.Size(), fileInfo.ModTime(), remotePath); err != nil {
+					tm.logger.Warn("记录文件上传到数据库失败: %s - %v", localPath, err)
+				} else {
+					tm.logger.Debug("已记录文件上传到本地数据库: %s", localPath)
+				}
+			}
+		}
 	}
 
 	task.EndTime = time.Now()
